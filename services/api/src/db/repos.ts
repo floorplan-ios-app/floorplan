@@ -2,6 +2,7 @@ import { sql } from "./sql";
 import { randomUUID } from "node:crypto";
 import type { Op } from "@floorplan/sync";
 import { synthesizeOpId } from "@floorplan/sync";
+import type { AssetJob, AssetJobStatus, AssetVariantType } from "@floorplan/shared";
 
 export type ProjectRow = {
   id: string;
@@ -9,6 +10,34 @@ export type ProjectRow = {
   created_at: string;
   updated_at: string;
   metadata: any;
+};
+
+export type AssetJobRow = {
+  id: string;
+  project_id: string;
+  asset_id: string;
+  type: AssetJob["type"];
+  status: AssetJobStatus;
+  payload: AssetJob;
+  attempts: number;
+  created_at: string;
+  updated_at: string;
+  started_at: string | null;
+  finished_at: string | null;
+};
+
+export type AssetVariantRow = {
+  id: string;
+  project_id: string;
+  asset_id: string;
+  variant_type: AssetVariantType;
+  object_key: string;
+  mime: string | null;
+  byte_size: number | null;
+  sha256: string | null;
+  pipeline_version: string;
+  metadata: any;
+  created_at: string;
 };
 
 export async function createProject(args: { name: string; ownerUserId?: string | null }) {
@@ -95,4 +124,32 @@ export async function getOpsAfter(projectId: string, afterServerSeq: number, lim
     LIMIT ${limit}
   `;
   return rows.map((r) => ({ serverSeq: Number(r.server_seq), op: r.payload }));
+}
+
+export async function enqueueAssetJob(job: AssetJob) {
+  const id = randomUUID();
+  const rows = await sql<AssetJobRow[]>`
+    INSERT INTO asset_jobs (id, project_id, asset_id, type, status, payload)
+    VALUES (
+      ${id}::uuid,
+      ${job.projectId}::uuid,
+      ${job.assetId}::uuid,
+      ${job.type},
+      'pending',
+      ${sql.json(job)}
+    )
+    RETURNING id, project_id, asset_id, type, status, payload, attempts, created_at, updated_at, started_at, finished_at
+  `;
+  return rows[0]!;
+}
+
+export async function listAssetVariants(projectId: string, assetId: string) {
+  const rows = await sql<AssetVariantRow[]>`
+    SELECT id, project_id, asset_id, variant_type, object_key, mime, byte_size, sha256, pipeline_version, metadata, created_at
+    FROM asset_variants
+    WHERE project_id = ${projectId}::uuid
+      AND asset_id = ${assetId}::uuid
+    ORDER BY created_at DESC
+  `;
+  return rows;
 }

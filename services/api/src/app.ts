@@ -2,7 +2,16 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
 import { OpBatchUpload, Op } from "@floorplan/sync";
-import { createProject, getProject, listProjects, appendOps, getOpsAfter } from "./db/repos";
+import { AssetJob, AssetJobRequest } from "@floorplan/shared";
+import {
+  createProject,
+  getProject,
+  listProjects,
+  appendOps,
+  getOpsAfter,
+  enqueueAssetJob,
+  listAssetVariants,
+} from "./db/repos";
 
 const app = new Hono();
 app.use("*", cors());
@@ -85,6 +94,35 @@ app.get("/v1/projects/:id/ops", async (c) => {
   const serverSeqMax = items.length ? items[items.length - 1]!.serverSeq : after;
 
   return c.json({ ops, serverSeqMax });
+});
+
+app.post("/v1/projects/:id/assets/:assetId/jobs", async (c) => {
+  const projectId = c.req.param("id");
+  const assetId = c.req.param("assetId");
+  if (!UUID.safeParse(projectId).success) return c.json({ error: "invalid project id" }, 400);
+  if (!UUID.safeParse(assetId).success) return c.json({ error: "invalid asset id" }, 400);
+
+  const body = await c.req.json().catch(() => null);
+  const parsed = AssetJobRequest.safeParse(body);
+  if (!parsed.success) return c.json({ error: "invalid job payload" }, 400);
+
+  const job = AssetJob.parse({
+    ...parsed.data,
+    projectId,
+    assetId,
+  });
+  const row = await enqueueAssetJob(job);
+  return c.json({ job: row }, 201);
+});
+
+app.get("/v1/projects/:id/assets/:assetId/variants", async (c) => {
+  const projectId = c.req.param("id");
+  const assetId = c.req.param("assetId");
+  if (!UUID.safeParse(projectId).success) return c.json({ error: "invalid project id" }, 400);
+  if (!UUID.safeParse(assetId).success) return c.json({ error: "invalid asset id" }, 400);
+
+  const variants = await listAssetVariants(projectId, assetId);
+  return c.json({ variants });
 });
 
 export { app };
