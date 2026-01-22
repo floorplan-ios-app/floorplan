@@ -1,8 +1,9 @@
-import { app } from "./app";
-import { websocketHandlers } from "./ws";
+import { createApp } from "./app";
+import { createWebsocketHub } from "./ws";
 
 const port = Number(process.env.PORT ?? 8787);
-const ws = websocketHandlers();
+const hub = createWebsocketHub();
+const app = createApp({ publishEvent: hub.publish });
 
 export default {
   port,
@@ -14,5 +15,5 @@ export default {
     }
     return app.fetch(req);
   },
-  websocket: ws,
+  websocket: hub.handlers,
 };
