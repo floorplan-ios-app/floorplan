@@ -104,7 +104,7 @@ app.post("/v1/projects/:id/assets/:assetId/jobs", async (c) => {
 
   const body = await c.req.json().catch(() => null);
   const parsedRequest = AssetJobRequest.safeParse(body);
-  if (!parsedRequest.success) return c.json({ error: "invalid job payload" }, 400);
+  if (!parsedRequest.success) return c.json({ error: "invalid job payload", details: parsedRequest.error.flatten() }, 400);
 
   const parsedJob = AssetJob.safeParse({
     ...parsedRequest.data,
