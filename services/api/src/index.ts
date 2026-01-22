@@ -23,6 +23,7 @@ export default {
       if (!projectId) {
         return new Response("missing projectId", { status: 400 });
       }
+      // TODO: verify role from DB (similar to requireProjectRole in app.ts)
       if (!projectRole || !allowedProjectRolesSet.has(projectRole)) {
         return new Response("insufficient role", { status: 403 });
       }
