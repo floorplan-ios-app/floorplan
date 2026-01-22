@@ -11,6 +11,7 @@ export const AssetVariantType = z.enum([
   "ios.usdz",
   "thumb",
   "preview",
+  "turntable",
 ]);
 
 export type AssetVariantType = z.infer<typeof AssetVariantType>;

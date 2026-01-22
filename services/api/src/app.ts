@@ -103,15 +103,17 @@ app.post("/v1/projects/:id/assets/:assetId/jobs", async (c) => {
   if (!UUID.safeParse(assetId).success) return c.json({ error: "invalid asset id" }, 400);
 
   const body = await c.req.json().catch(() => null);
-  const parsed = AssetJobRequest.safeParse(body);
-  if (!parsed.success) return c.json({ error: "invalid job payload" }, 400);
+  const parsedRequest = AssetJobRequest.safeParse(body);
+  if (!parsedRequest.success) return c.json({ error: "invalid job payload", details: parsedRequest.error.flatten() }, 400);
 
-  const job = AssetJob.parse({
-    ...parsed.data,
+  const parsedJob = AssetJob.safeParse({
+    ...parsedRequest.data,
     projectId,
     assetId,
   });
-  const row = await enqueueAssetJob(job);
+  if (!parsedJob.success) return c.json({ error: "invalid job payload", details: parsedJob.error.flatten() }, 400);
+
+  const row = await enqueueAssetJob(parsedJob.data);
   return c.json({ job: row }, 201);
 });
 

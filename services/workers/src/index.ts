@@ -46,6 +46,8 @@ const buildVariantKey = (variantType: AssetVariantType, sha256: string, metadata
       return `assets/thumbs/${sha256}/thumb.png`;
     case "preview":
       return `assets/previews/${sha256}/hero.jpg`;
+    case "turntable":
+      return `assets/turntables/${sha256}/turntable.mp4`;
     case "source":
     default:
       return `assets/src/${sha256}/source`;
@@ -177,12 +179,26 @@ const buildVariantsForJob = (job: AssetJob): AssetVariantInsert[] => {
           objectKey: buildVariantKey("thumb", job.sourceSha256),
           metadata: { size: job.payload.thumbnailSize },
         },
-        {
-          ...base,
-          variantType: "preview",
-          objectKey: buildVariantKey("preview", job.sourceSha256),
-          metadata: { hero: job.payload.hero },
-        },
+        ...(job.payload.hero
+          ? [
+              {
+                ...base,
+                variantType: "preview",
+                objectKey: buildVariantKey("preview", job.sourceSha256),
+                metadata: { hero: job.payload.hero },
+              },
+            ]
+          : []),
+        ...(job.payload.turntable
+          ? [
+              {
+                ...base,
+                variantType: "turntable",
+                objectKey: buildVariantKey("turntable", job.sourceSha256),
+                metadata: { turntable: true },
+              },
+            ]
+          : []),
       ];
     default:
       return [];
