@@ -180,7 +180,7 @@ model item from `packages/shared`.
 
 **Acceptance criteria**
 - Assets can be uploaded and ingested, producing downloadable variants.
-- Projects can reference assets via metadata fields without schema drift.
+- Projects can reference assets via metadata fields, and these references adhere to a documented, versioned schema.
 - Cache eviction controls exist on both iOS and web.
 
 ---
