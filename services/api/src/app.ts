@@ -45,8 +45,14 @@ function requireProjectRole(
   const role = c.req.header("x-project-role");
   const parsed = ProjectRole.safeParse(role);
   // TODO: verify role from DB using userId + projectId (e.g., project_members lookup).
-  void userId;
-  void projectId;
+  const memberRow = await db.query(
+    'SELECT role FROM project_members WHERE project_id = $1 AND user_id = $2',
+    [projectId, userId]
+  );
+  if (!memberRow || !allowed.includes(memberRow.role)) {
+    return null;
+  }
+  return memberRow.role;
   if (!parsed.success || !allowed.includes(parsed.data)) {
     return null;
   }
