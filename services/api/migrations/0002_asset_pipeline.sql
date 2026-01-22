@@ -5,8 +5,8 @@ BEGIN;
 
 CREATE TABLE IF NOT EXISTS asset_jobs (
   id UUID PRIMARY KEY,
-  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
-  asset_id UUID REFERENCES assets(id) ON DELETE CASCADE,
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  asset_id UUID NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
   type TEXT NOT NULL,
   status TEXT NOT NULL DEFAULT 'pending',
   payload JSONB NOT NULL,
@@ -23,8 +23,8 @@ CREATE INDEX IF NOT EXISTS idx_asset_jobs_status_created
 
 CREATE TABLE IF NOT EXISTS asset_variants (
   id UUID PRIMARY KEY,
-  project_id UUID REFERENCES projects(id) ON DELETE CASCADE,
-  asset_id UUID REFERENCES assets(id) ON DELETE CASCADE,
+  project_id UUID NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+  asset_id UUID NOT NULL REFERENCES assets(id) ON DELETE CASCADE,
   variant_type TEXT NOT NULL,
   object_key TEXT NOT NULL,
   mime TEXT,
@@ -34,7 +34,7 @@ CREATE TABLE IF NOT EXISTS asset_variants (
   metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
 
-  UNIQUE (asset_id, variant_type, pipeline_version)
+  UNIQUE (asset_id, variant_type, pipeline_version, object_key)
 );
 
 CREATE INDEX IF NOT EXISTS idx_asset_variants_asset
