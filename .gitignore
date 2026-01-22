@@ -1,0 +1,34 @@
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Node/Bun
+node_modules/
+dist/
+build/
+.cache/
+.turbo/
+*.log
+bun.lockb
+
+# Env
+.env
+.env.*
+!.env.example
+
+# iOS
+apps/ios/.build/
+apps/ios/DerivedData/
+apps/ios/*.xcodeproj/
+apps/ios/*.xcworkspace/
+apps/ios/*.xcuserdatad/
+apps/ios/*.xccheckout
+apps/ios/*.xcscmblueprint
+
+# Python
+__pycache__/
+*.pyc
+
+# DB
+*.sqlite

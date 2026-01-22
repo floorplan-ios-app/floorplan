@@ -1,0 +1,14 @@
+{
+  "name": "@floorplan/workers",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "start": "bun src/index.ts",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "zod": "^3.23.8",
+    "@floorplan/shared": "workspace:*"
+  }
+}

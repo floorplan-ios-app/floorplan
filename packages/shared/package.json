@@ -1,0 +1,11 @@
+{
+  "name": "@floorplan/shared",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bun test"
+  },
+  "dependencies": {
+    "zod": "^3.23.8"
+  }
+}

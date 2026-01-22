@@ -1,0 +1,51 @@
+{
+  "date": "2026-01-22",
+  "dir": "/mnt/data/specs_full",
+  "files": [
+    {
+      "name": "OVERARCHING_ARCHITECTURE_SPEC.md",
+      "bytes": 11522,
+      "sha256": "898238717653874662b3134c3f53f59b7373f0cc373c73275cb356a7a04398ed"
+    },
+    {
+      "name": "BACKEND_SPEC.md",
+      "bytes": 11460,
+      "sha256": "657e738beffb77f94752061718a5805f360d3343a2af0bde77970b803e33ba74"
+    },
+    {
+      "name": "IOS_APP_SPEC.md",
+      "bytes": 9701,
+      "sha256": "49a310bf3ba4a3326db863778f058ed6022b22ce23548a9f32f94a8d895889c7"
+    },
+    {
+      "name": "WEB_APP_SPEC.md",
+      "bytes": 3567,
+      "sha256": "4fbb5052280fe52630c2e80c4147b75c18b77b6360b1d18a0d1294b857331451"
+    },
+    {
+      "name": "ASSET_PIPELINE_SPEC.md",
+      "bytes": 4829,
+      "sha256": "bd0ad6515eb61c664f8979e71779ec59dd4eb6eb31654e91a84587e2263baa5f"
+    },
+    {
+      "name": "AI_AND_ML_SPEC.md",
+      "bytes": 5818,
+      "sha256": "4f71b7e4697d87cbaf464695f9c92dfe7a4aeaa5842c19e0e03faddfb4732f70"
+    },
+    {
+      "name": "SYNC_AND_OFFLINE_SPEC.md",
+      "bytes": 9108,
+      "sha256": "61526ce45cec2f9a5ed3b1ccf1bdd656bee761a15816e51599369bcddc1357fb"
+    },
+    {
+      "name": "SECURITY_AND_PRIVACY_SPEC.md",
+      "bytes": 6856,
+      "sha256": "89add69c9e219ff03359ce86c6dbf2912a488857b391dfd22dbb9eff835b34f4"
+    },
+    {
+      "name": "REQUIREMENTS_FROM_REPO.md",
+      "bytes": 15608,
+      "sha256": "8b4816b77af0b217557a646c7d09e6ff9bda23e9ec8ec4b5625f78379e027e7b"
+    }
+  ]
+}

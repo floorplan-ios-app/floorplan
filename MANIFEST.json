@@ -1,0 +1,278 @@
+{
+  "generated_at": "2026-01-22T08:43:01.963363Z",
+  "root": "floor-plan-tracer-next",
+  "files": {
+    ".editorconfig": {
+      "bytes": 246,
+      "sha256": "351b000f59740503aafd9a059e462d3e4fd05d99eed41055523e3f36687d35c6"
+    },
+    ".env.example": {
+      "bytes": 319,
+      "sha256": "33a9362bf9fcfd3d8e95489c8fd0bb91675327f2be06613f2c70a20ee88af98a"
+    },
+    ".github/workflows/ci.yml": {
+      "bytes": 240,
+      "sha256": "d80c99ef4733343967e052d5e34970b26cbd501da4825d2060e3abe5805ee98b"
+    },
+    ".gitignore": {
+      "bytes": 352,
+      "sha256": "584b0143098ab6ed75f85c546cdc53c2158ee4d3471caf1c2d20d6b72b3056ba"
+    },
+    "LICENSE": {
+      "bytes": 1056,
+      "sha256": "1126322e2cc8d165adc4c792eeb195717de2bcc7b39be1ce77959d78e87ef685"
+    },
+    "Makefile": {
+      "bytes": 435,
+      "sha256": "64eb9960a9baad5a26dc0adf8e7c164d65ec886b4062f88675163d96f8d4fa26"
+    },
+    "README.md": {
+      "bytes": 1538,
+      "sha256": "6e9b2736f9225a1690fd11b3dfe044317178207f3f02cf0e1f877f77eaa3422d"
+    },
+    "VERSION": {
+      "bytes": 15,
+      "sha256": "2d4db61460ef010b8955ee946f0d570813c8768a063f3d894637de31db4ea598"
+    },
+    "apps/ios/README.md": {
+      "bytes": 342,
+      "sha256": "0e9a7a516bb6ac3b3eb7a246bf998fc6151cb4acd86150f3bbf407399efa01d1"
+    },
+    "apps/ios/Sources/App/ContentView.swift": {
+      "bytes": 449,
+      "sha256": "ff17b5e1ed43645e9a72d047fe200ba3c3233e94e2b8c835df5c8d304d48f0c5"
+    },
+    "apps/ios/Sources/App/FloorPlanTracerApp.swift": {
+      "bytes": 130,
+      "sha256": "33c3bba60169b261d55c0d9978b8020249a334e3fc98f493f47095800d832095"
+    },
+    "apps/ios/Sources/App/Storage/LocalStore.swift": {
+      "bytes": 1425,
+      "sha256": "b03e56c93ca0d9fb20df8034f4824de97ee04d70d5a3ee3006115ae547ad8875"
+    },
+    "apps/ios/Sources/App/Sync/SyncClient.swift": {
+      "bytes": 1963,
+      "sha256": "11b411a752599cb381526c4f8c24c4e9bb639c7041a8bae23568acffd0187e05"
+    },
+    "apps/ios/Sources/Features/Editor/EditorView.swift": {
+      "bytes": 310,
+      "sha256": "e6f888407f8fcc4bdd1ef7195437113c37bbb94a450612d1a456ca2e0f53b3eb"
+    },
+    "apps/ios/Sources/Info.plist": {
+      "bytes": 188,
+      "sha256": "d9b06c202956033b01e62b21c727eea89b6a4fd456ef71d420c39f460426b9f3"
+    },
+    "apps/ios/project.yml": {
+      "bytes": 715,
+      "sha256": "70003af6250b2ba4bdfd11ec2599e7835a49c3f3bfb203b684bc49cacde427df"
+    },
+    "apps/web/index.html": {
+      "bytes": 310,
+      "sha256": "b50b574edac4280b4a043c4e40b7159593ff870e4a0733a97fe6b595e543fa78"
+    },
+    "apps/web/package.json": {
+      "bytes": 492,
+      "sha256": "c2b2e224ede00cf144034ea2e243b100cbbc3b644491954bf25117aadee8324b"
+    },
+    "apps/web/src/main.tsx": {
+      "bytes": 221,
+      "sha256": "f6fc0939fc6c1cd017733123b681d3d30605fb6800c3a80710b125efbcae7032"
+    },
+    "apps/web/src/ui/App.tsx": {
+      "bytes": 512,
+      "sha256": "9bd654efecfd23d5eeaa3aab83ab8d770f0ac68e6b45860ebc76dd23cb4d044f"
+    },
+    "apps/web/src/util/api.ts": {
+      "bytes": 304,
+      "sha256": "5b0865ca7b631958e4deb975e79ea182d0f37328edef91e320887d82c2bf5ce1"
+    },
+    "apps/web/tsconfig.json": {
+      "bytes": 124,
+      "sha256": "5fa2a25eec4242e2345014c727d3381f22177c2853c755d4777b420b40f8ac2f"
+    },
+    "apps/web/vite.config.ts": {
+      "bytes": 167,
+      "sha256": "204f5406c59ba5b8e7a3a2e886ff804567dd217afd19472e4a7840675ad54f90"
+    },
+    "bunfig.toml": {
+      "bytes": 96,
+      "sha256": "fce97b8c7af6f737e6efb9f2fe894f6ad9b346d34c136395a5cba8883da99042"
+    },
+    "docker-compose.yml": {
+      "bytes": 544,
+      "sha256": "e7558c4f97f6b8d03ed0414062813adeee1e6e6b95a33d0ca8790cb38eb7ddf2"
+    },
+    "docs/ADR/0001-monolith-first.md": {
+      "bytes": 376,
+      "sha256": "05e5c509e7b268e40498e1429d5a46d2a442b1f20c17e378472edbd5c1777166"
+    },
+    "docs/ADR/0002-oplog-offline-first.md": {
+      "bytes": 482,
+      "sha256": "ea7da75d07278c9ce80301ff93fbc1022ccad1e9c736228c533cf27fbee6899f"
+    },
+    "docs/DEV_GUIDE.md": {
+      "bytes": 948,
+      "sha256": "46ce253088ccb75135e02b0ef0326e40ec011b47c02c86c8a9765efc59ebd029"
+    },
+    "docs/ROADMAP.md": {
+      "bytes": 775,
+      "sha256": "7686b65b893928f12ab74eec0a72096051a1a2f0217561cb4fa4980c56dacc29"
+    },
+    "docs/specs/AI_AND_ML_SPEC.md": {
+      "bytes": 5818,
+      "sha256": "4f71b7e4697d87cbaf464695f9c92dfe7a4aeaa5842c19e0e03faddfb4732f70"
+    },
+    "docs/specs/ASSET_PIPELINE_SPEC.md": {
+      "bytes": 4829,
+      "sha256": "bd0ad6515eb61c664f8979e71779ec59dd4eb6eb31654e91a84587e2263baa5f"
+    },
+    "docs/specs/BACKEND_SPEC.md": {
+      "bytes": 11460,
+      "sha256": "657e738beffb77f94752061718a5805f360d3343a2af0bde77970b803e33ba74"
+    },
+    "docs/specs/IOS_APP_SPEC.md": {
+      "bytes": 9701,
+      "sha256": "49a310bf3ba4a3326db863778f058ed6022b22ce23548a9f32f94a8d895889c7"
+    },
+    "docs/specs/OVERARCHING_ARCHITECTURE_SPEC.md": {
+      "bytes": 11522,
+      "sha256": "898238717653874662b3134c3f53f59b7373f0cc373c73275cb356a7a04398ed"
+    },
+    "docs/specs/README.md": {
+      "bytes": 693,
+      "sha256": "48c5a8fca76663c6ae2135b02c478589ff327c95258f03c74d87d7c39576d521"
+    },
+    "docs/specs/REQUIREMENTS_FROM_REPO.md": {
+      "bytes": 15608,
+      "sha256": "8b4816b77af0b217557a646c7d09e6ff9bda23e9ec8ec4b5625f78379e027e7b"
+    },
+    "docs/specs/SECURITY_AND_PRIVACY_SPEC.md": {
+      "bytes": 6856,
+      "sha256": "89add69c9e219ff03359ce86c6dbf2912a488857b391dfd22dbb9eff835b34f4"
+    },
+    "docs/specs/SYNC_AND_OFFLINE_SPEC.md": {
+      "bytes": 9108,
+      "sha256": "61526ce45cec2f9a5ed3b1ccf1bdd656bee761a15816e51599369bcddc1357fb"
+    },
+    "docs/specs/WEB_APP_SPEC.md": {
+      "bytes": 3567,
+      "sha256": "4fbb5052280fe52630c2e80c4147b75c18b77b6360b1d18a0d1294b857331451"
+    },
+    "docs/specs/_repo_mining.json": {
+      "bytes": 10901,
+      "sha256": "24326116d1587a77fa4c66c770ffd49192903bcfeed0019ab24b70686605ad00"
+    },
+    "package.json": {
+      "bytes": 809,
+      "sha256": "0b0c8eeba2ff19252f073ec06d4bc5f9bcf3c663b6bd350bf7c8f90283b2878d"
+    },
+    "packages/shared/package.json": {
+      "bytes": 161,
+      "sha256": "5eeff92685df41f2bd011a8c4957e0ec5ee4b57f09194cd9e9332db3b90ab289"
+    },
+    "packages/shared/src/index.ts": {
+      "bytes": 50,
+      "sha256": "0e7cec47751a6d5ef81a292d7d01a8652330cef45ec8a8af761d2bc5332c04e8"
+    },
+    "packages/shared/src/model.ts": {
+      "bytes": 993,
+      "sha256": "447fbd22a7640f49d13d5dc0afc8633f95e3a33ed165cd441ee7f8389103ade0"
+    },
+    "packages/shared/src/units.ts": {
+      "bytes": 240,
+      "sha256": "812c6eb09ededa033b689084df5cc7e1bebc4898b396a739209686bddfabf183"
+    },
+    "packages/shared/test/model.test.ts": {
+      "bytes": 532,
+      "sha256": "3ba1e6c2ce59f85e28dfb268707a6d4e6aabed3bbc00697048684986e609e006"
+    },
+    "packages/shared/tsconfig.json": {
+      "bytes": 73,
+      "sha256": "30f128b9c42687f8d9c368d1d221d1c168afe22ecb4aef32599e14facdfa3a02"
+    },
+    "packages/sync/package.json": {
+      "bytes": 246,
+      "sha256": "94390996e88c5f131f48a8f5941755d522cae388ab88e7f538139fcb5d9b94c0"
+    },
+    "packages/sync/src/oplog.ts": {
+      "bytes": 3138,
+      "sha256": "ddf15f11da7fe7018b7a1bebd6f124f1a46ee4baee2415ae87876169a2ded206"
+    },
+    "packages/sync/test/oplog.test.ts": {
+      "bytes": 349,
+      "sha256": "9c5c83079784d030049d40db8e0d410cb8373016b145777a77956aaf45e514bd"
+    },
+    "packages/sync/tsconfig.json": {
+      "bytes": 73,
+      "sha256": "30f128b9c42687f8d9c368d1d221d1c168afe22ecb4aef32599e14facdfa3a02"
+    },
+    "scripts/bootstrap.sh": {
+      "bytes": 524,
+      "sha256": "1a940599118187a43fb77aba8bdca356142c309141040bc25943bd74dea40593"
+    },
+    "services/api/README.md": {
+      "bytes": 565,
+      "sha256": "d06fc3ef9c5888803ad0f095b7e27e730728f559c68fb6339bd52db95aaeffda"
+    },
+    "services/api/migrations/0001_init.sql": {
+      "bytes": 3142,
+      "sha256": "f30af05ffc8fa8422ae4c8849d204d52952342a271c52ef92295438928bd1624"
+    },
+    "services/api/package.json": {
+      "bytes": 458,
+      "sha256": "33ce6704ddf8c5981fe3c5f13a1340068d56a8a6b380bfc0bbd7e0fb33942300"
+    },
+    "services/api/scripts/migrate.ts": {
+      "bytes": 1746,
+      "sha256": "bd052bc3ab253633bfe78e0c29a0c5e79eeefe36257e9f4e852a297c8cce3e6b"
+    },
+    "services/api/src/app.ts": {
+      "bytes": 2994,
+      "sha256": "c96db73d3f4cb3ecf5c39374f37775146685513ad53346e76b4823a6bc6bf133"
+    },
+    "services/api/src/db/repos.ts": {
+      "bytes": 2898,
+      "sha256": "6268911045d598e9a40e1305622c0a63176f93b4b2829d10c2dbce82ac7804af"
+    },
+    "services/api/src/db/sql.ts": {
+      "bytes": 443,
+      "sha256": "4da21b79b7a24ecd5ce5b49ae889f187fd83037e8ff7c7c640a16eae3fc135e3"
+    },
+    "services/api/src/index.ts": {
+      "bytes": 443,
+      "sha256": "5488b2fbe448b75d50760eb190c85b15777063c16c9e6113619806b7d6a457aa"
+    },
+    "services/api/src/ws.ts": {
+      "bytes": 825,
+      "sha256": "521d56e2fffbc1b84437aca4f1d39bcb3c23ba6217b624ec7025dfc5a9179434"
+    },
+    "services/api/test/db_migrate.test.ts": {
+      "bytes": 244,
+      "sha256": "4be5f2e98352f19716bb68a797fcf409018e96c03588ee4e50550d0877782aa0"
+    },
+    "services/api/test/health.test.ts": {
+      "bytes": 295,
+      "sha256": "8a3c80aabbef24fedd6df2873643302de66e3dfe07d33387c4e4a182ca4bdfd1"
+    },
+    "services/api/tsconfig.json": {
+      "bytes": 73,
+      "sha256": "30f128b9c42687f8d9c368d1d221d1c168afe22ecb4aef32599e14facdfa3a02"
+    },
+    "services/workers/package.json": {
+      "bytes": 276,
+      "sha256": "c29a8d2bdea141bc21ee8160298d74e5baf1c5a1eac9c713a33c52bfbaad417e"
+    },
+    "services/workers/src/index.ts": {
+      "bytes": 268,
+      "sha256": "389fd02609e30b600d14b8d526f0a06b5e18380b894d913c57b715a3e4513eee"
+    },
+    "services/workers/tsconfig.json": {
+      "bytes": 73,
+      "sha256": "30f128b9c42687f8d9c368d1d221d1c168afe22ecb4aef32599e14facdfa3a02"
+    },
+    "tsconfig.base.json": {
+      "bytes": 326,
+      "sha256": "f07eae01a659e09ac1f077e35a877a0b4c78c847a937782950aadac8e5f0ff62"
+    }
+  }
+}

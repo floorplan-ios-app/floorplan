@@ -1,0 +1,7 @@
+# Bun workspace defaults
+[install]
+exact = true
+
+[test]
+# Keep tests deterministic
+preload = []

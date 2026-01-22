@@ -1,0 +1,21 @@
+{
+  "name": "@floorplan/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun run --hot src/index.ts",
+    "start": "bun src/index.ts",
+    "test": "bun test",
+    "db:migrate": "bun scripts/migrate.ts"
+  },
+  "dependencies": {
+    "hono": "^4.6.3",
+    "zod": "^3.23.8",
+    "@floorplan/shared": "workspace:*",
+    "postgres": "^3.4.5",
+    "@floorplan/sync": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.3"
+  }
+}
