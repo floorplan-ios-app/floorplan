@@ -111,7 +111,7 @@ app.post("/v1/projects/:id/assets/:assetId/jobs", async (c) => {
     projectId,
     assetId,
   });
-  if (!parsedJob.success) return c.json({ error: "invalid job payload" }, 400);
+  if (!parsedJob.success) return c.json({ error: "invalid job payload", details: parsedJob.error.flatten() }, 400);
 
   const row = await enqueueAssetJob(parsedJob.data);
   return c.json({ job: row }, 201);
