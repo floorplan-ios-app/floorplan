@@ -1,13 +1,21 @@
 import { expect, test } from "bun:test";
-import { Project, deriveFloorPlanBounds, normalizeFloorPlan, validateFloorPlan } from "../src/model";
+import {
+  Project,
+  deriveFloorPlanBounds,
+  normalizeFloorPlan,
+  validateFloorPlan,
+  validateProject
+} from "../src/model";
 
 test("Project schema parses minimal project", () => {
   const p = Project.parse({
+    schemaVersion: 1,
     id: "p1",
     name: "Test",
     createdAt: "2026-01-22T00:00:00Z",
     updatedAt: "2026-01-22T00:00:00Z",
     floorPlan: {
+      schemaVersion: 1,
       id: "fp1",
       nodes: [{ id: "n1", x: 0, y: 0 }, { id: "n2", x: 1000, y: 0 }],
       walls: [{ id: "w1", startNodeId: "n1", endNodeId: "n2", thickness: 100, openings: [] }]
@@ -18,6 +26,7 @@ test("Project schema parses minimal project", () => {
 
 test("normalizeFloorPlan sorts ids deterministically", () => {
   const normalized = normalizeFloorPlan({
+    schemaVersion: 1,
     id: "fp1",
     nodes: [
       { id: "n2", x: 1000, y: 0 },
@@ -51,6 +60,7 @@ test("normalizeFloorPlan sorts ids deterministically", () => {
 
 test("validateFloorPlan returns issues for duplicate ids and missing nodes", () => {
   const issues = validateFloorPlan({
+    schemaVersion: 1,
     id: "fp1",
     nodes: [{ id: "n1", x: 0, y: 0 }, { id: "n1", x: 1000, y: 0 }],
     walls: [
@@ -79,6 +89,7 @@ test("validateFloorPlan returns issues for duplicate ids and missing nodes", () 
 
 test("validateFloorPlan flags degenerate walls with identical nodes", () => {
   const issues = validateFloorPlan({
+    schemaVersion: 1,
     id: "fp1",
     nodes: [{ id: "n1", x: 0, y: 0 }],
     walls: [
@@ -97,6 +108,7 @@ test("validateFloorPlan flags degenerate walls with identical nodes", () => {
 
 test("validateFloorPlan flags openings that exceed wall length", () => {
   const issues = validateFloorPlan({
+    schemaVersion: 1,
     id: "fp1",
     nodes: [
       { id: "n1", x: 0, y: 0 },
@@ -116,8 +128,36 @@ test("validateFloorPlan flags openings that exceed wall length", () => {
   expect(issues.map((issue) => issue.code)).toEqual(["opening-exceeds-wall"]);
 });
 
+test("validateProject returns floorplan issues with paths", () => {
+  const issues = validateProject({
+    schemaVersion: 1,
+    id: "p1",
+    name: "Project",
+    createdAt: "2026-01-22T00:00:00Z",
+    updatedAt: "2026-01-22T00:00:00Z",
+    floorPlan: {
+      schemaVersion: 1,
+      id: "fp1",
+      nodes: [{ id: "n1", x: 0, y: 0 }],
+      walls: [
+        {
+          id: "w1",
+          startNodeId: "n1",
+          endNodeId: "n1",
+          thickness: 100,
+          openings: []
+        }
+      ]
+    }
+  });
+
+  expect(issues.some((issue) => issue.code === "floorplan-invalid")).toBe(true);
+  expect(issues[0]?.path.startsWith("floorPlan")).toBe(true);
+});
+
 test("deriveFloorPlanBounds returns min and max extents", () => {
   const bounds = deriveFloorPlanBounds({
+    schemaVersion: 1,
     id: "fp1",
     nodes: [
       { id: "n1", x: -500, y: 0 },

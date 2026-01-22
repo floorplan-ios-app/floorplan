@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { Operation, OperationType } from "@floorplan/shared";
 
 /**
  * Offline-first op-log primitives (implementation skeleton).
  *
  * Goals:
  * - Represent user edits as an append-only stream of operations.
- * - Make operations idempotent (dedupe by (projectId, actorId, clientSeq)).
+ * - Make operations idempotent (dedupe by (projectId, actorId, clientOpId)).
  * - Allow server to assign a global ordering (serverSeq) for streaming.
  *
  * The full protocol & UX expectations are specified in:
@@ -27,63 +28,78 @@ export const OpId = z.string().min(1);
 // For server streaming
 export const ServerSeq = z.number().int().nonnegative();
 
-export const BaseOp = z.object({
-  projectId: ProjectId,
-  actorId: ActorId,
-  clientSeq: ClientSeq,
+export const OpEnvelope = Operation.extend({
   lamport: Lamport,
-  ts: z.string(), // ISO time; client clock
-  // Optional opId; if omitted server can synthesize (actorId:clientSeq)
+  clientSeq: ClientSeq,
   opId: OpId.optional(),
 });
 
-// NOTE: In a real implementation we'd strongly type payloads.
-// For scaffolding, we enumerate a few representative operations and keep payload extensible.
-export const Op = z.discriminatedUnion("type", [
-  BaseOp.extend({
-    type: z.literal("project.rename"),
-    name: z.string().min(1),
-  }),
+export type OpEnvelope = z.infer<typeof OpEnvelope>;
 
-  // Floorplan edits
-  BaseOp.extend({
-    type: z.literal("floorplan.node.upsert"),
-    node: z.any(),
-  }),
-  BaseOp.extend({
-    type: z.literal("floorplan.node.delete"),
-    nodeId: z.string(),
-  }),
-  BaseOp.extend({
-    type: z.literal("floorplan.wall.upsert"),
-    wall: z.any(),
-  }),
-  BaseOp.extend({
-    type: z.literal("floorplan.wall.delete"),
-    wallId: z.string(),
-  }),
+export const OpLogEntry = OpEnvelope.extend({
+  serverSeq: ServerSeq,
+  serverTime: z.number().int().nonnegative(),
+});
 
-  // Scene graph edits (furniture/materials) - placeholders
-  BaseOp.extend({
-    type: z.literal("scene.entity.upsert"),
-    entity: z.any(),
-  }),
-  BaseOp.extend({
-    type: z.literal("scene.entity.delete"),
-    entityId: z.string(),
-  }),
+export type OpLogEntry = z.infer<typeof OpLogEntry>;
+
+export const MergeStrategy = z.enum([
+  "commutative",
+  "lww",
+  "delete-wins",
+  "rebase",
+  "manual",
 ]);
 
-export type Op = z.infer<typeof Op>;
+export const ConflictResolutionRule = z.object({
+  id: z.string().min(1),
+  opType: OperationType,
+  strategy: MergeStrategy,
+  description: z.string().min(1),
+  userFacingMessage: z.string().min(1),
+});
+
+export type ConflictResolutionRule = z.infer<typeof ConflictResolutionRule>;
+
+export const DEFAULT_CONFLICT_RULES: ConflictResolutionRule[] = [
+  {
+    id: "topology.split-vs-move",
+    opType: "SplitWall",
+    strategy: "rebase",
+    description: "Apply split then attempt to reattach move if node still exists.",
+    userFacingMessage: "Corner changed by another user; reattach move to nearest corner?",
+  },
+  {
+    id: "delete-vs-opening",
+    opType: "MoveOpening",
+    strategy: "delete-wins",
+    description: "Delete wins when update targets removed entity.",
+    userFacingMessage: "Door target wall no longer exists; choose a new wall or discard.",
+  },
+  {
+    id: "object-move-lww",
+    opType: "MoveObject",
+    strategy: "lww",
+    description: "Use last-writer-wins by server seq and actor id.",
+    userFacingMessage: "Object moved by another user; keep theirs or keep yours.",
+  },
+  {
+    id: "material-set-lww",
+    opType: "SetMaterial",
+    strategy: "lww",
+    description: "Use last-writer-wins on material changes.",
+    userFacingMessage: "Material updated by another collaborator.",
+  },
+];
 
 export const OpBatchUpload = z.object({
-  ops: z.array(Op).min(1),
+  ops: z.array(OpEnvelope).min(1),
 });
 
 export type OpBatchUpload = z.infer<typeof OpBatchUpload>;
 
 export const OpBatchDownload = z.object({
-  ops: z.array(Op),
+  ops: z.array(OpLogEntry),
   // The highest serverSeq included in this response (cursor for next page)
   serverSeqMax: ServerSeq,
 });
@@ -98,7 +114,7 @@ export type OpBatchDownload = z.infer<typeof OpBatchDownload>;
  * - maintain derived data (rooms, adjacency, etc),
  * - be safe under partial order / replays.
  */
-export function applyOps(state: any, ops: Op[]): any {
+export function applyOps(state: any, ops: OpEnvelope[]): any {
   return {
     ...state,
     _appliedOps: (state?._appliedOps ?? 0) + ops.length,
@@ -106,6 +122,6 @@ export function applyOps(state: any, ops: Op[]): any {
   };
 }
 
-export function synthesizeOpId(op: Pick<Op, "opId" | "actorId" | "clientSeq">): string {
+export function synthesizeOpId(op: Pick<OpEnvelope, "opId" | "actorId" | "clientSeq">): string {
   return op.opId ?? `${op.actorId}:${op.clientSeq}`;
 }
