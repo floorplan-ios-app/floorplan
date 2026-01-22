@@ -1,11 +1,11 @@
-import { app } from "./app";
+import { allowedProjectRoles, app } from "./app";
 import { createLogger } from "./observability";
 import { websocketHandlers } from "./ws";
 
 const port = Number(process.env.PORT ?? 8787);
 const logger = createLogger("api");
 const ws = websocketHandlers(logger);
-const allowedProjectRoles = new Set(["owner", "editor", "viewer"]);
+const allowedProjectRolesSet = new Set(allowedProjectRoles);
 
 export default {
   port,
@@ -23,7 +23,7 @@ export default {
       if (!projectId) {
         return new Response("missing projectId", { status: 400 });
       }
-      if (!projectRole || !allowedProjectRoles.has(projectRole)) {
+      if (!projectRole || !allowedProjectRolesSet.has(projectRole)) {
         return new Response("insufficient role", { status: 403 });
       }
 
