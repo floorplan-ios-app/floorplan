@@ -11,6 +11,15 @@ export type ProjectRow = {
   metadata: any;
 };
 
+export type ProjectShareRow = {
+  id: string;
+  project_id: string;
+  token: string;
+  mode: "view" | "review";
+  created_at: string;
+  created_by_user_id: string | null;
+};
+
 export async function createProject(args: { name: string; ownerUserId?: string | null }) {
   const id = randomUUID();
   const rows = await sql<ProjectRow[]>`
@@ -49,6 +58,37 @@ export async function listProjects(ownerUserId?: string | null) {
     LIMIT 50
   `;
   return rows;
+}
+
+export async function createProjectShare(args: {
+  projectId: string;
+  mode: "view" | "review";
+  createdByUserId?: string | null;
+}) {
+  const id = randomUUID();
+  const token = randomUUID();
+  const rows = await sql<ProjectShareRow[]>`
+    INSERT INTO project_shares (id, project_id, token, mode, created_by_user_id)
+    VALUES (
+      ${id}::uuid,
+      ${args.projectId}::uuid,
+      ${token},
+      ${args.mode},
+      ${args.createdByUserId ?? null}::uuid
+    )
+    RETURNING id, project_id, token, mode, created_at, created_by_user_id
+  `;
+  return rows[0]!;
+}
+
+export async function getProjectShareByToken(token: string) {
+  const rows = await sql<ProjectShareRow[]>`
+    SELECT id, project_id, token, mode, created_at, created_by_user_id
+    FROM project_shares
+    WHERE token = ${token}
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
 }
 
 export async function appendOps(projectId: string, ops: Op[]) {

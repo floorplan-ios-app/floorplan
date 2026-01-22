@@ -2,7 +2,15 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
 import { OpBatchUpload, Op } from "@floorplan/sync";
-import { createProject, getProject, listProjects, appendOps, getOpsAfter } from "./db/repos";
+import {
+  appendOps,
+  createProject,
+  createProjectShare,
+  getOpsAfter,
+  getProject,
+  getProjectShareByToken,
+  listProjects,
+} from "./db/repos";
 
 const app = new Hono();
 app.use("*", cors());
@@ -10,6 +18,7 @@ app.use("*", cors());
 app.get("/health", (c) => c.json({ status: "ok" }));
 
 const UUID = z.string().uuid();
+const ShareMode = z.enum(["view", "review"]);
 
 function actorFromHeaders(req: Request): string | null {
   // DEV stub: client provides actor id
@@ -44,6 +53,38 @@ app.get("/v1/projects/:id", async (c) => {
   const project = await getProject(id);
   if (!project) return c.json({ error: "not found" }, 404);
   return c.json({ project });
+});
+
+app.post("/v1/projects/:id/shares", async (c) => {
+  const id = c.req.param("id");
+  const parsed = UUID.safeParse(id);
+  if (!parsed.success) return c.json({ error: "invalid id" }, 400);
+
+  const body = await c.req.json().catch(() => null);
+  const mode = ShareMode.safeParse(body?.mode);
+  if (!mode.success) return c.json({ error: "invalid share mode" }, 400);
+
+  const project = await getProject(id);
+  if (!project) return c.json({ error: "not found" }, 404);
+
+  const userId = userFromHeaders(c.req.raw);
+  const share = await createProjectShare({
+    projectId: id,
+    mode: mode.data,
+    createdByUserId: userId,
+  });
+  return c.json({ share }, 201);
+});
+
+app.get("/v1/shares/:token", async (c) => {
+  const token = c.req.param("token");
+  const parsed = z.string().min(8).safeParse(token);
+  if (!parsed.success) return c.json({ error: "invalid token" }, 400);
+
+  const share = await getProjectShareByToken(parsed.data);
+  if (!share) return c.json({ error: "not found" }, 404);
+
+  return c.json({ share });
 });
 
 // Upload ops
