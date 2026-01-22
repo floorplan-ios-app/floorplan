@@ -26,12 +26,16 @@ export function createLocalObjectStore(): ObjectStore {
       const safeName = sanitizeFilename(filename);
       return `${prefix}/${randomUUID()}-${safeName}`;
     },
-    createPresignedUpload({ objectKey }) {
+    createPresignedUpload({ objectKey, contentType }) {
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000).toISOString();
+      const headers: Record<string, string> = {};
+      if (contentType) {
+        headers["Content-Type"] = contentType;
+      }
       return {
         url: `${baseUrl}/${objectKey}`,
         method: "PUT",
-        headers: {},
+        headers,
         objectKey,
         expiresAt,
       };

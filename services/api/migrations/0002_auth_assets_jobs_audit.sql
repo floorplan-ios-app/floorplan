@@ -21,8 +21,8 @@ CREATE TABLE IF NOT EXISTS asset_variants (
 
 CREATE TABLE IF NOT EXISTS auth_sessions (
   id UUID PRIMARY KEY,
-  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-  device_id UUID REFERENCES devices(id) ON DELETE SET NULL,
+  user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+  device_id UUID REFERENCES devices(id) ON DELETE CASCADE,
   access_token_hash TEXT NOT NULL,
   refresh_token_hash TEXT NOT NULL,
   access_expires_at TIMESTAMPTZ NOT NULL,
@@ -53,6 +53,12 @@ CREATE TABLE IF NOT EXISTS jobs (
 
 CREATE INDEX IF NOT EXISTS idx_jobs_status
   ON jobs(status);
+
+CREATE INDEX IF NOT EXISTS idx_jobs_asset_id
+  ON jobs(asset_id);
+
+CREATE INDEX IF NOT EXISTS idx_jobs_project_id
+  ON jobs(project_id);
 
 CREATE TABLE IF NOT EXISTS audit_logs (
   id UUID PRIMARY KEY,

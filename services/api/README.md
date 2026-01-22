@@ -33,11 +33,11 @@ bun run db:migrate
 - `DELETE /v1/projects/:id`
 - `POST /v1/projects/:id/ops` body: `{ "ops": [Op...] }` with header `x-actor-id`
 - `GET /v1/projects/:id/ops?afterServerSeq=0&limit=200`
-- `GET /v1/assets?projectId=:id`
+- `GET /v1/assets?projectId=<project_id>`
 - `POST /v1/assets/uploads`
 - `GET /v1/assets/:id`
 - `PATCH /v1/assets/:id/metadata`
 - `POST /v1/assets/:id/variants`
 - `POST /v1/jobs`
-- `GET /v1/jobs?assetId=:id`
+- `GET /v1/jobs?assetId=<asset_id>`
 - `GET /ws` (WebSocket topics: auth, projects, assets, sync)
