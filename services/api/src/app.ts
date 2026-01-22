@@ -24,7 +24,8 @@ function userFromHeaders(req: Request): string | null {
   return req.headers.get("x-user-id");
 }
 
-const ProjectRole = z.enum(["owner", "editor", "viewer"]);
+export const ProjectRole = z.enum(["owner", "editor", "viewer"]);
+export const allowedProjectRoles = ProjectRole.options;
 type ProjectRole = z.infer<typeof ProjectRole>;
 
 function requireUser(c: any): string | null {
@@ -35,9 +36,23 @@ function requireUser(c: any): string | null {
   return userId;
 }
 
-function requireProjectRole(c: any, allowed: ProjectRole[]): ProjectRole | null {
+function requireProjectRole(
+  c: any,
+  userId: string,
+  projectId: string,
+  allowed: ProjectRole[],
+): ProjectRole | null {
   const role = c.req.header("x-project-role");
   const parsed = ProjectRole.safeParse(role);
+  // TODO: verify role from DB using userId + projectId (e.g., project_members lookup).
+  const memberRow = await db.query(
+    'SELECT role FROM project_members WHERE project_id = $1 AND user_id = $2',
+    [projectId, userId]
+  );
+  if (!memberRow || !allowed.includes(memberRow.role)) {
+    return null;
+  }
+  return memberRow.role;
   if (!parsed.success || !allowed.includes(parsed.data)) {
     return null;
   }
@@ -67,7 +82,7 @@ app.get("/v1/projects/:id", async (c) => {
   if (!parsed.success) return c.json({ error: "invalid id" }, 400);
   const userId = requireUser(c);
   if (!userId) return c.json({ error: "missing x-user-id" }, 401);
-  if (!requireProjectRole(c, ["owner", "editor", "viewer"])) {
+  if (!requireProjectRole(c, userId, id, ["owner", "editor", "viewer"])) {
     return c.json({ error: "insufficient role" }, 403);
   }
 
@@ -84,7 +99,7 @@ app.post("/v1/projects/:id/ops", async (c) => {
 
   const userId = requireUser(c);
   if (!userId) return c.json({ error: "missing x-user-id" }, 401);
-  if (!requireProjectRole(c, ["owner", "editor"])) {
+  if (!requireProjectRole(c, userId, id, ["owner", "editor"])) {
     return c.json({ error: "insufficient role" }, 403);
   }
 
@@ -97,8 +112,7 @@ app.post("/v1/projects/:id/ops", async (c) => {
 
   // Ensure ops actorId matches header (basic sanity).
   for (const op of batch.data.ops) {
-    const opActor = (op as any).actorId;
-    if (opActor !== actorId) {
+    if (op.actorId !== actorId) {
       return c.json({ error: "actor mismatch" }, 400);
     }
   }
@@ -114,7 +128,7 @@ app.get("/v1/projects/:id/ops", async (c) => {
   if (!parsed.success) return c.json({ error: "invalid id" }, 400);
   const userId = requireUser(c);
   if (!userId) return c.json({ error: "missing x-user-id" }, 401);
-  if (!requireProjectRole(c, ["owner", "editor", "viewer"])) {
+  if (!requireProjectRole(c, userId, id, ["owner", "editor", "viewer"])) {
     return c.json({ error: "insufficient role" }, 403);
   }
 
