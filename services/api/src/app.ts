@@ -1,11 +1,14 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
-import { OpBatchUpload, Op } from "@floorplan/sync";
+import { OpBatchUpload } from "@floorplan/sync";
 import { createProject, getProject, listProjects, appendOps, getOpsAfter } from "./db/repos";
+import { createLogger, requestTracing } from "./observability";
 
 const app = new Hono();
+const logger = createLogger("api");
 app.use("*", cors());
+app.use("*", requestTracing(logger));
 
 app.get("/health", (c) => c.json({ status: "ok" }));
 
@@ -21,8 +24,29 @@ function userFromHeaders(req: Request): string | null {
   return req.headers.get("x-user-id");
 }
 
-app.get("/v1/projects", async (c) => {
+const ProjectRole = z.enum(["owner", "editor", "viewer"]);
+type ProjectRole = z.infer<typeof ProjectRole>;
+
+function requireUser(c: any): string | null {
   const userId = userFromHeaders(c.req.raw);
+  if (!userId) {
+    return null;
+  }
+  return userId;
+}
+
+function requireProjectRole(c: any, allowed: ProjectRole[]): ProjectRole | null {
+  const role = c.req.header("x-project-role");
+  const parsed = ProjectRole.safeParse(role);
+  if (!parsed.success || !allowed.includes(parsed.data)) {
+    return null;
+  }
+  return parsed.data;
+}
+
+app.get("/v1/projects", async (c) => {
+  const userId = requireUser(c);
+  if (!userId) return c.json({ error: "missing x-user-id" }, 401);
   const rows = await listProjects(userId);
   return c.json({ projects: rows });
 });
@@ -31,7 +55,8 @@ app.post("/v1/projects", async (c) => {
   const body = await c.req.json().catch(() => null);
   const parsed = z.object({ name: z.string().min(1) }).safeParse(body);
   if (!parsed.success) return c.json({ error: "invalid body" }, 400);
-  const userId = userFromHeaders(c.req.raw);
+  const userId = requireUser(c);
+  if (!userId) return c.json({ error: "missing x-user-id" }, 401);
   const project = await createProject({ name: parsed.data.name, ownerUserId: userId });
   return c.json({ project }, 201);
 });
@@ -40,6 +65,11 @@ app.get("/v1/projects/:id", async (c) => {
   const id = c.req.param("id");
   const parsed = UUID.safeParse(id);
   if (!parsed.success) return c.json({ error: "invalid id" }, 400);
+  const userId = requireUser(c);
+  if (!userId) return c.json({ error: "missing x-user-id" }, 401);
+  if (!requireProjectRole(c, ["owner", "editor", "viewer"])) {
+    return c.json({ error: "insufficient role" }, 403);
+  }
 
   const project = await getProject(id);
   if (!project) return c.json({ error: "not found" }, 404);
@@ -51,6 +81,12 @@ app.post("/v1/projects/:id/ops", async (c) => {
   const id = c.req.param("id");
   const parsed = UUID.safeParse(id);
   if (!parsed.success) return c.json({ error: "invalid id" }, 400);
+
+  const userId = requireUser(c);
+  if (!userId) return c.json({ error: "missing x-user-id" }, 401);
+  if (!requireProjectRole(c, ["owner", "editor"])) {
+    return c.json({ error: "insufficient role" }, 403);
+  }
 
   const actorId = actorFromHeaders(c.req.raw);
   if (!actorId) return c.json({ error: "missing x-actor-id" }, 401);
@@ -76,6 +112,11 @@ app.get("/v1/projects/:id/ops", async (c) => {
   const id = c.req.param("id");
   const parsed = UUID.safeParse(id);
   if (!parsed.success) return c.json({ error: "invalid id" }, 400);
+  const userId = requireUser(c);
+  if (!userId) return c.json({ error: "missing x-user-id" }, 401);
+  if (!requireProjectRole(c, ["owner", "editor", "viewer"])) {
+    return c.json({ error: "insufficient role" }, 403);
+  }
 
   const after = Number(c.req.query("afterServerSeq") ?? "0");
   const limit = Math.min(Number(c.req.query("limit") ?? "200"), 1000);

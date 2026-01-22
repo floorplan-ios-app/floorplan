@@ -143,6 +143,30 @@ Treat floor plans as sensitive:
 - Provide “do not train on my data” setting where vendors support it.
 - Offer local-only AI features when feasible (Core ML).
 
+### Data retention policy (server-side defaults)
+These defaults apply unless a stricter contractual policy exists:
+- Active projects: retained until user deletion.
+- Soft-deleted projects: 30-day grace period before hard delete.
+- Project ops/event history: retained with project; hard-deleted with project.
+- Export packages and render outputs: 30 days after creation, unless pinned by user.
+- Audit logs (sharing/access events): 90 days, then aggregated counts only.
+- Backups: rolling 35-day window; backups are purged on schedule and included in delete SLA.
+
+### Export workflow ("Export my data")
+- Authenticated request triggers a background job to assemble a user-scoped archive.
+- Contents: projects + metadata, ops history or latest snapshot, assets (sources + variants),
+  export/renders, account profile, and device/session metadata.
+- Output: a signed URL with short TTL (e.g., 24 hours), and an audit log entry.
+- Rate limit export requests per user and notify on completion.
+
+### Delete workflow ("Delete my data")
+- Authenticated request performs a soft delete and starts a retention timer.
+- Within the grace period: user can restore; access is blocked to others.
+- At grace expiry: hard delete project data, assets, and derived artifacts.
+- Delete cascades across related tables and object storage keys.
+- Backups: deletion guaranteed within the backup retention window (35 days max).
+- User receives confirmation when hard delete completes; log the deletion event.
+
 ---
 
 ## Hardening or removing “remote exec / remote tab automation”
@@ -212,4 +236,3 @@ Implementation notes:
 - Remove/ignore external URL references inside glTF.
 - Optionally scan archives with a malware scanner in workers.
 - For shared links, avoid exposing stable asset URLs; always use signed URLs.
-
