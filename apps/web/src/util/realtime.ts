@@ -36,8 +36,8 @@ export function createRealtimeClient(args: {
   const handleOpsPayload = (payload: OpBatchDownload) => {
     if (payload.ops.length) {
       emit({ type: "ops", projectId, payload });
+      afterServerSeq = payload.serverSeqMax;
     }
-    afterServerSeq = payload.serverSeqMax;
   };
 
   const handleMessage = (data: unknown) => {
