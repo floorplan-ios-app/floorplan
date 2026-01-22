@@ -113,6 +113,7 @@ export const OperationTypeValues = [
   "RotateObject",
   "DeleteObject",
   "SetMaterial",
+  "SetLight",
   "SetEnvironment",
 ] as const;
 
@@ -203,6 +204,10 @@ export const OperationPayload = z.discriminatedUnion("type", [
     type: z.literal("SetMaterial"),
     targetId: NonEmptyString,
     materialId: NonEmptyString,
+  }),
+  z.object({
+    type: z.literal("SetLight"),
+    lightId: NonEmptyString,
   }),
   z.object({
     type: z.literal("SetEnvironment"),
