@@ -54,6 +54,14 @@ function ttlMinutes(value: string | undefined, fallback: number) {
   return Number.isFinite(Number(value)) ? Number(value) : fallback;
 }
 
+const PAIRING_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+function generatePairingCode(length = 8) {
+  const bytes = new Uint8Array(length);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => PAIRING_CODE_ALPHABET[b % PAIRING_CODE_ALPHABET.length]).join("");
+}
+
 export function createApp(deps: AppDeps = {}) {
   const app = new Hono();
   const db = createDbStorage();
@@ -194,6 +202,143 @@ export function createApp(deps: AppDeps = {}) {
     const session = await db.auth.getSessionByAccessToken(token);
     if (!session) return c.json({ error: "invalid session" }, 401);
     return c.json({ userId: session.user_id, deviceId: session.device_id, accessExpiresAt: session.access_expires_at });
+  });
+
+  app.post("/v1/pairing/create", async (c) => {
+    const userId = await resolveUserId(c);
+    if (!userId) return c.json({ error: "missing x-user-id" }, 401);
+    const body = await c.req.json().catch(() => ({}));
+    const parsed = z
+      .object({
+        deviceName: z.string().min(1).optional(),
+        deviceType: z.string().min(1).optional(),
+        ttlSeconds: z.number().int().positive().max(600).optional(),
+      })
+      .safeParse(body);
+    if (!parsed.success) return c.json({ error: "invalid body" }, 400);
+
+    const ttlSeconds = parsed.data.ttlSeconds ?? 300;
+    const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
+
+    let created: Awaited<ReturnType<typeof db.pairing.createCode>> | null = null;
+    for (let attempt = 0; attempt < 5 && !created; attempt += 1) {
+      const code = generatePairingCode(8);
+      try {
+        created = await db.pairing.createCode({
+          userId,
+          code,
+          expiresAt,
+          deviceName: parsed.data.deviceName ?? null,
+          deviceType: parsed.data.deviceType ?? null,
+        });
+      } catch {
+        // retry on collision
+      }
+    }
+    if (!created) return c.json({ error: "pairing unavailable" }, 503);
+
+    await db.audit.log({
+      userId,
+      actorId: actorFromHeaders(c.req.raw),
+      action: "pairing.create",
+      resourceType: "pairing_code",
+      resourceId: created.id,
+      ip: ipFromRequest(c.req.raw),
+      userAgent: userAgentFromRequest(c.req.raw),
+      metadata: { expiresAt: created.expires_at },
+    });
+
+    return c.json({ pairingId: created.id, code: created.code, expiresAt: created.expires_at });
+  });
+
+  app.post("/v1/pairing/complete", async (c) => {
+    const body = await c.req.json().catch(() => ({}));
+    const parsed = z
+      .object({
+        code: z.string().min(4),
+        deviceName: z.string().min(1).optional(),
+        deviceType: z.string().min(1).optional(),
+      })
+      .safeParse(body);
+    if (!parsed.success) return c.json({ error: "invalid body" }, 400);
+
+    const pairing = await db.pairing.getByCode(parsed.data.code);
+    if (!pairing) return c.json({ error: "invalid or expired code" }, 404);
+
+    const device = await db.devices.create({
+      userId: pairing.user_id,
+      name: parsed.data.deviceName ?? pairing.device_name ?? null,
+      deviceType: parsed.data.deviceType ?? pairing.device_type ?? null,
+    });
+
+    await db.pairing.markUsed(pairing.id);
+
+    const accessToken = crypto.randomUUID();
+    const refreshToken = crypto.randomUUID();
+    const accessMinutes = ttlMinutes(process.env.ACCESS_TOKEN_TTL_MINUTES, 15);
+    const refreshDays = ttlMinutes(process.env.REFRESH_TOKEN_TTL_DAYS, 30);
+    const accessExpiresAt = new Date(Date.now() + accessMinutes * 60 * 1000).toISOString();
+    const refreshExpiresAt = new Date(Date.now() + refreshDays * 24 * 60 * 60 * 1000).toISOString();
+
+    await db.auth.createSession({
+      userId: pairing.user_id,
+      deviceId: device.id,
+      accessToken,
+      refreshToken,
+      accessExpiresAt,
+      refreshExpiresAt,
+    });
+
+    await db.audit.log({
+      userId: pairing.user_id,
+      deviceId: device.id,
+      actorId: actorFromHeaders(c.req.raw),
+      action: "pairing.complete",
+      resourceType: "device",
+      resourceId: device.id,
+      ip: ipFromRequest(c.req.raw),
+      userAgent: userAgentFromRequest(c.req.raw),
+      metadata: { pairingId: pairing.id },
+    });
+
+    publishEvent({
+      topic: "auth",
+      payload: { type: "pairing.completed", userId: pairing.user_id, deviceId: device.id },
+    });
+
+    return c.json({ accessToken, refreshToken, accessExpiresAt, refreshExpiresAt, deviceId: device.id });
+  });
+
+  app.get("/v1/devices", async (c) => {
+    const userId = await resolveUserId(c);
+    if (!userId) return c.json({ error: "missing x-user-id" }, 401);
+    const devices = await db.devices.list(userId);
+    return c.json({ devices });
+  });
+
+  app.post("/v1/devices/:id/revoke", async (c) => {
+    const userId = await resolveUserId(c);
+    if (!userId) return c.json({ error: "missing x-user-id" }, 401);
+    const id = c.req.param("id");
+    if (!UUID.safeParse(id).success) return c.json({ error: "invalid device id" }, 400);
+
+    const device = await db.devices.revoke(id);
+    if (!device || device.user_id !== userId) return c.json({ error: "not found" }, 404);
+
+    await db.auth.revokeSessionsByDevice(id);
+
+    await db.audit.log({
+      userId,
+      deviceId: id,
+      actorId: actorFromHeaders(c.req.raw),
+      action: "device.revoke",
+      resourceType: "device",
+      resourceId: id,
+      ip: ipFromRequest(c.req.raw),
+      userAgent: userAgentFromRequest(c.req.raw),
+    });
+
+    return c.json({ revoked: true });
   });
 
   app.get("/v1/projects", async (c) => {
