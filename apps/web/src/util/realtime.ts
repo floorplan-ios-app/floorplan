@@ -1,5 +1,6 @@
 import { ApiAppendOpsResponse } from "@floorplan/shared";
 import { OpBatchDownload } from "@floorplan/sync";
+import { getApiHeaders } from "./api";
 
 export type RealtimeEvent =
   | { type: "ops"; projectId: string; payload: OpBatchDownload }
@@ -15,9 +16,11 @@ export function createRealtimeClient(args: {
   projectId: string;
   onEvent: (event: RealtimeEvent) => void;
   pollIntervalMs?: number;
+  headers?: Record<string, string>;
 }): RealtimeClient {
   const { apiBase, projectId, onEvent } = args;
   const pollInterval = args.pollIntervalMs ?? 5000;
+  const headers = args.headers ?? getApiHeaders();
 
   let closed = false;
   let afterServerSeq = 0;
@@ -30,7 +33,29 @@ export function createRealtimeClient(args: {
     }
   };
 
+  const handleOpsPayload = (payload: OpBatchDownload) => {
+    if (payload.ops.length) {
+      emit({ type: "ops", projectId, payload });
+      afterServerSeq = payload.serverSeqMax;
+    }
+  };
+
+  const handleMessage = (data: unknown) => {
+    const opsResult = OpBatchDownload.safeParse(data);
+    if (opsResult.success) {
+      handleOpsPayload(opsResult.data);
+      return;
+    }
+    const ackResult = ApiAppendOpsResponse.safeParse(data);
+    if (ackResult.success) {
+      emit({ type: "ack", projectId, payload: ackResult.data });
+      return;
+    }
+    emit({ type: "status", status: "polling", detail: "Ignored realtime payload." });
+  };
+
   const startPolling = () => {
+    if (pollTimer) return;
     emit({ type: "status", status: "polling" });
     const tick = async () => {
       if (closed) return;
@@ -39,27 +64,37 @@ export function createRealtimeClient(args: {
         url.searchParams.set("afterServerSeq", String(afterServerSeq));
         url.searchParams.set("limit", "200");
         const response = await fetch(url.toString(), {
-          headers: {
-            "x-user-id": "demo-user",
-            "x-actor-id": "demo-actor",
-          },
+          headers,
         });
         if (response.ok) {
-          const payload = (await response.json()) as OpBatchDownload;
-          if (payload.ops.length) {
-            emit({ type: "ops", projectId, payload });
-            afterServerSeq = payload.serverSeqMax;
-          }
+          const payload = await response.json();
+          handleMessage(payload);
+        } else {
+          emit({
+            type: "status",
+            status: "polling",
+            detail: `Polling failed: ${response.status} ${response.statusText}`,
+          });
         }
-      } catch {
-        // ignore polling errors
+      } catch (error) {
+        emit({
+          type: "status",
+          status: "polling",
+          detail: `Polling error: ${error instanceof Error ? error.message : String(error)}`,
+        });
       } finally {
         if (!closed) {
-          pollTimer = window.setTimeout(tick, pollInterval);
+          pollTimer = window.setTimeout(() => {
+            pollTimer = null;
+            void tick();
+          }, pollInterval);
         }
       }
     };
-    pollTimer = window.setTimeout(tick, pollInterval);
+    pollTimer = window.setTimeout(() => {
+      pollTimer = null;
+      void tick();
+    }, pollInterval);
   };
 
   const connectWebSocket = () => {
@@ -70,21 +105,28 @@ export function createRealtimeClient(args: {
 
       ws.addEventListener("open", () => emit({ type: "status", status: "connected" }));
       ws.addEventListener("close", () => {
+        if (closed) return;
         emit({ type: "status", status: "disconnected" });
         ws = null;
         startPolling();
       });
+      ws.addEventListener("error", () => {
+        if (closed) return;
+        emit({ type: "status", status: "disconnected", detail: "WebSocket error." });
+        ws?.close();
+      });
       ws.addEventListener("message", (event) => {
         try {
-          const data = JSON.parse(String(event.data)) as OpBatchDownload | ApiAppendOpsResponse;
-          if ("ops" in data) {
-            emit({ type: "ops", projectId, payload: data });
-            afterServerSeq = data.serverSeqMax;
-          } else if ("serverSeqMax" in data) {
-            emit({ type: "ack", projectId, payload: data });
-          }
-        } catch {
-          // ignore
+          const data = JSON.parse(String(event.data));
+          handleMessage(data);
+        } catch (error) {
+          emit({
+            type: "status",
+            status: "polling",
+            detail: `Message parse error: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          });
         }
       });
     } catch {

@@ -10,7 +10,7 @@ import { Op, OpBatchDownload, OpBatchUpload } from "@floorplan/sync";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "http://localhost:8787";
 
-function apiHeaders() {
+export function getApiHeaders() {
   const userId = import.meta.env.VITE_USER_ID ?? "demo-user";
   const actorId = import.meta.env.VITE_ACTOR_ID ?? "demo-actor";
   return {
@@ -38,7 +38,7 @@ export async function apiHealth(): Promise<string> {
 
 export async function apiListProjects(): Promise<ProjectSummary[]> {
   const response = await fetch(`${API_BASE}/v1/projects`, {
-    headers: apiHeaders(),
+    headers: getApiHeaders(),
   });
   const payload = await parseJson(response, ApiListProjectsResponse);
   return payload.projects.map(toProjectSummary);
@@ -48,7 +48,7 @@ export async function apiCreateProject(name: string): Promise<ProjectSummary> {
   const body = ApiCreateProjectRequest.parse({ name });
   const response = await fetch(`${API_BASE}/v1/projects`, {
     method: "POST",
-    headers: apiHeaders(),
+    headers: getApiHeaders(),
     body: JSON.stringify(body),
   });
   const payload = await parseJson(response, ApiProjectResponse);
@@ -57,7 +57,7 @@ export async function apiCreateProject(name: string): Promise<ProjectSummary> {
 
 export async function apiGetProject(id: string): Promise<ProjectSummary> {
   const response = await fetch(`${API_BASE}/v1/projects/${id}`, {
-    headers: apiHeaders(),
+    headers: getApiHeaders(),
   });
   const payload = await parseJson(response, ApiProjectResponse);
   return toProjectSummary(payload.project);
@@ -67,7 +67,7 @@ export async function apiAppendOps(projectId: string, ops: Op[]): Promise<ApiApp
   const body = OpBatchUpload.parse({ ops });
   const response = await fetch(`${API_BASE}/v1/projects/${projectId}/ops`, {
     method: "POST",
-    headers: apiHeaders(),
+    headers: getApiHeaders(),
     body: JSON.stringify(body),
   });
   return parseJson(response, ApiAppendOpsResponse);
@@ -82,8 +82,7 @@ export async function apiGetOps(
   url.searchParams.set("afterServerSeq", String(afterServerSeq));
   url.searchParams.set("limit", String(limit));
   const response = await fetch(url.toString(), {
-    headers: apiHeaders(),
+    headers: getApiHeaders(),
   });
   return parseJson(response, OpBatchDownload);
 }
-
