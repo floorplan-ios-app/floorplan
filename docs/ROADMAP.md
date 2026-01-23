@@ -6,6 +6,8 @@
 - Minimal API (auth stub, project CRUD stub)
 - Minimal iOS app shell (routing + empty editor surface)
 - Minimal web viewer (load dummy project)
+- Device pairing + session management (companion web)
+- Project rename via op-log
 
 ## Milestone 1 — 2D floorplan editor (iOS)
 - Node/wall editing (grid + snapping)

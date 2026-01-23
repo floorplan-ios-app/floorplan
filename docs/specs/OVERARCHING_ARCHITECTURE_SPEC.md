@@ -42,6 +42,7 @@ The legacy repo is used only to mine requirements (see `REQUIREMENTS_FROM_REPO.m
 - Version history & rollback.
 - AI assistants: layout suggestions, auto-furnish, style transfer, material generation.
 - Cross-platform web companion (optional; secondary to iOS).
+- Device pairing for companion sessions (QR/code-based).
 
 ---
 
@@ -240,4 +241,3 @@ Common gaps across consumer-facing tools (opportunities):
 4. **End-to-end workflow**: scan → correct → furnish → lighting → export → shopping list, with professional-grade precision.
 5. **Version history / branching** for design iterations.
 6. **Accessibility and ergonomics**: one-handed/pen workflows, great snapping, and low cognitive friction.
-

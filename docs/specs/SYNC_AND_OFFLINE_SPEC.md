@@ -160,6 +160,9 @@ Guidance:
 - exponential backoff
 - persist state before background task completion
 
+Optional enhancement:
+- silent push notifications can trigger a lightweight catch-up when another device syncs (opt-in).
+
 ---
 
 ## Collaboration primitives
@@ -245,4 +248,3 @@ Vector clocks can still help explain concurrency to users (“your edit was made
 - Queued uploads visible (optional detail screen).
 - Conflicts are tasks in an inbox, not modal popups.
 - “Export” always works offline; uploads happen later.
-

@@ -44,6 +44,7 @@ This aligns with “MonolithFirst” guidance: start with a monolith, split only
    - Sign in with Apple, passkeys, email magic link (optional).
    - Device registry, sessions, token rotation, revocation.
    - Pairing flows (for companion web app) as a special case.
+   - Pairing security requirements are defined in `DEVICE_PAIRING_SPEC.md`.
 
 2. **Projects**
    - Project metadata: title, owners, last modified, schema version.
@@ -97,8 +98,9 @@ This aligns with “MonolithFirst” guidance: start with a monolith, split only
 ### Core endpoints (illustrative)
 - `POST /v1/auth/apple` → session
 - `POST /v1/auth/refresh` → rotate
-- `POST /v1/pairing/create` → short code
-- `POST /v1/pairing/complete` → web session
+- `POST /v1/pairing/create` → short code (see DEVICE_PAIRING_SPEC)
+- `POST /v1/pairing/complete` → web session (see DEVICE_PAIRING_SPEC)
+- `GET /v1/devices` / `POST /v1/devices/:id/revoke`
 - `GET /v1/projects` / `POST /v1/projects`
 - `GET /v1/projects/:id/ops?after=<seq>` (paged)
 - `POST /v1/projects/:id/ops` (batch append)
@@ -106,6 +108,7 @@ This aligns with “MonolithFirst” guidance: start with a monolith, split only
 - `POST /v1/assets/uploads` → pre-signed upload
 - `POST /v1/assets/ingest` → validate+index
 - `GET /v1/assets/:id` (signed URL)
+- `GET /v1/assets/:id/content?format=glb|usdz` (signed URL; allow on-demand conversion)
 - `POST /v1/jobs` (admin/debug)
 
 ### WebSocket channels
@@ -131,6 +134,7 @@ Use Postgres with a hybrid relational + JSONB approach:
 #### Recommended core tables
 - `users(id, apple_sub, email, created_at, ...)`
 - `devices(id, user_id, name, platform, created_at, last_seen_at, revoked_at)`
+- `pairing_codes(id, code, user_id, expires_at, created_at, used_at)`
 - `sessions(id, user_id, device_id, refresh_token_hash, expires_at, ...)`
 - `projects(id, owner_id, title, schema_version, created_at, updated_at, ...)`
 - `project_members(project_id, user_id, role, invited_by, ...)`
@@ -335,4 +339,3 @@ Multi-region realtime is expensive. A pragmatic path:
 - replicate DB read replicas for latency
 - keep WS connections region-sticky
 - enable “project region pinning” if needed
-
