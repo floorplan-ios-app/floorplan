@@ -4,7 +4,7 @@ Date: 2026-01-23
 
 ## Scope
 
-Defines the device pairing and companion-session workflow for linking web/iPad devices to a primary iOS device without requiring full account login. This spec augments the auth sections of BACKEND/SECURITY and is the source of truth for pairing endpoints, token scopes, and UX requirements.
+Defines the device pairing and companion-session workflow for linking web/iPad devices to a primary iOS device without requiring full account login. Pairing is optional and should not be required for core app usage. This spec augments the auth sections of BACKEND/SECURITY and is the source of truth for pairing endpoints, token scopes, and UX requirements.
 
 ## Goals
 
@@ -13,6 +13,7 @@ Defines the device pairing and companion-session workflow for linking web/iPad d
 - Optional approval on the primary device for sensitive pairings.
 - Server-issued session tokens with scoped privileges and revocation.
 - Auditability (pairing events logged).
+- Pairing must not block basic usage; anonymous auth remains valid.
 
 ## Entities
 
@@ -56,6 +57,7 @@ Defines the device pairing and companion-session workflow for linking web/iPad d
 - iOS: “Add device” shows code + QR, indicates expiry, offers “Revoke all pairings”.
 - Web: “Pair device” entry form, handles invalid/expired code gracefully.
 - App UI displays device list with last seen time and revoke action.
+- Pairing UI is optional; app is usable without ever pairing a device.
 
 ## Audit & Logging
 
@@ -66,3 +68,6 @@ Defines the device pairing and companion-session workflow for linking web/iPad d
 
 - Pairing is a convenience flow and does not replace full account auth when required.
 - Tokens may include scope claims (e.g., `read_only` for view-only sessions).
+- Pairing must work for anonymous users, but never becomes a prerequisite to create/edit projects.
+- Anonymous session bootstrap may create a device entry (via `deviceId`) so the device list is
+  populated even before any pairing occurs.

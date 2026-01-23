@@ -56,6 +56,7 @@
       "name": "@floorplan/workers",
       "dependencies": {
         "@floorplan/shared": "workspace:*",
+        "postgres": "^3.4.5",
         "zod": "^3.23.8",
       },
     },

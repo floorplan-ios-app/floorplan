@@ -47,8 +47,14 @@ Rationale:
 - **Assets**: catalog, search, favorites, downloads, local imports.
 - **Account/Sharing**: sign-in, sharing, collaborator management.
 - **Settings**: units, performance quality, privacy, cache management.
-- **Device Pairing**: QR/code pairing flow for web companion sessions (see DEVICE_PAIRING_SPEC).
+- **Device Pairing**: optional QR/code pairing flow for web companion sessions (see DEVICE_PAIRING_SPEC).
 - **Export/Share**: export PDF/PNG/USDZ and share links.
+
+### Interaction and layout notes (best-of spec2)
+- 2D/3D are presentations of the same project state; editors share a single source of truth.
+- iPad uses split/side panels for tools/inspectors; iPhone uses modal cards or bottom sheets.
+- Contextual inspector appears when an element is selected (walls, rooms, furniture).
+- Asset library supports search + categories; allow tap-to-place and (on iPad) drag-to-canvas.
 
 ---
 
@@ -71,12 +77,18 @@ Key interactive behaviors:
   - wall thickness
   - wall joins and corners
 - Measurement overlays with selectable reference edges.
+- Gesture expectations:
+  - drag to create walls and nodes
+  - tap to select; drag to move; handles for resize/rotate where relevant
+  - on selection, show inline dimension labels for precise edits
 
 ### 3D editor (non-AR)
 Use **RealityKit** for the primary 3D scene:
 - Load furniture as `ModelEntity` from USDZ (preferred on iOS) or converted assets.
 - Use anchors for floors/rooms and parenting to manage transforms.
 - Keep “editor gizmos” (selection outline, transform handles) in a separate render layer or overlay.
+- Provide quick camera modes: orbit, dollhouse, and first-person walkthrough.
+- Use hit-testing to select entities; surface a contextual inspector for transforms/materials.
 
 If RealityKit falls short for specific rendering features:
 - Add a specialized **Metal** path for a subset of needs (e.g., custom selection highlighting, CAD-like overlays).
@@ -109,6 +121,8 @@ Best practices:
 - Manage AR session lifecycle, handle interruptions and tracking quality changes.
 - Limit per-frame CPU and avoid excessive entity counts.
 - Stream in assets progressively and show placeholders during loads.
+- Use a focus-square style placement indicator and tracking-quality messaging.
+- Constrain object movement to detected planes; prefer rotate/translate gestures over free-scale.
 
 ---
 
@@ -120,11 +134,13 @@ Store:
 - Op-log entries (pending + applied)
 - Asset cache metadata
 - Download/upload queues
+- Auth state (anonymous identity + tokens)
 
 Recommended storage:
 - SQLite (Core Data or a lightweight wrapper).
 - Binary assets in app sandbox file storage.
-- Tokens in Keychain.
+- Tokens + anonymous identity in Keychain (private key + device auth metadata).
+- Optional: iCloud Keychain/app data for restoring anonymous identity across devices.
 
 ### Sync engine integration
 The sync engine:
@@ -185,6 +201,36 @@ Suggested targets (tune per device class):
   - load large scenes
   - asset cache thrash scenarios
 - Optional: Appium hooks for device automation (especially for AR flows where possible).
+- Appium manual flow: prefer a real Appium driver session + Simulator on screen and observe behavior
+  via live UI + screenshots/logs. Use direct Appium API calls rather than scripted flows when
+  evaluating UX (see DEV_GUIDE for local run steps).
+- Appium scripted flow: the TypeScript runner must pass `API_BASE` into the simulator environment
+  so the app can reach the local API server. Default to simulator loopback (`http://127.0.0.1:8787`);
+  fall back to the host LAN IP when explicitly requested.
+
+## Authentication & identity (iOS)
+
+**Goal**: The app must be usable without device pairing. Authentication should be frictionless:
+users can start anonymously, and later optionally connect to a full account.
+
+### Anonymous auth (default)
+- On first launch, generate a device-local identity:
+  - Create a signing keypair in Keychain (Secure Enclave when available).
+  - Store public key + derived device identifier; keep private key in Keychain.
+- Request an anonymous session from the backend:
+  - Exchange the device public key (or a signed nonce) for access + refresh tokens.
+  - Persist tokens in Keychain; refresh silently.
+- Allow offline-first usage even before an auth session completes; queue ops for upload.
+
+### Optional upgrades
+- If user signs in (future): link anonymous identity to an account; retain project history.
+- If iCloud Keychain or app data is available:
+  - Sync the anonymous identity keypair to allow “same identity on new device”
+  - Make it opt-in and explain the privacy impact.
+
+### Requirements
+- Pairing is never required to create/edit projects.
+- Loss of Keychain identity should not corrupt local projects; only affects sync identity.
 
 ---
 

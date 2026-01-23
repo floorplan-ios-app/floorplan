@@ -90,8 +90,19 @@ export function createApp(deps: AppDeps = {}) {
       .safeParse(body);
     if (!parsed.success) return c.json({ error: "invalid body" }, 400);
 
-    const userId = parsed.data.userId ?? userFromHeaders(c.req.raw);
+    let userId = parsed.data.userId ?? userFromHeaders(c.req.raw);
     const deviceId = parsed.data.deviceId ?? null;
+    if (!userId) {
+      userId = crypto.randomUUID();
+    }
+
+    await db.users.ensure({ id: userId });
+    if (deviceId) {
+      const existing = await db.devices.getById(deviceId);
+      if (!existing) {
+        await db.devices.createWithId({ id: deviceId, userId, name: "iOS", deviceType: "ios" });
+      }
+    }
 
     const accessToken = crypto.randomUUID();
     const refreshToken = crypto.randomUUID();
@@ -126,7 +137,7 @@ export function createApp(deps: AppDeps = {}) {
       payload: { type: "auth.session.created", userId, deviceId, accessExpiresAt },
     });
 
-    return c.json({ accessToken, refreshToken, accessExpiresAt, refreshExpiresAt });
+    return c.json({ accessToken, refreshToken, accessExpiresAt, refreshExpiresAt, userId });
   });
 
   app.post("/v1/auth/refresh", async (c) => {

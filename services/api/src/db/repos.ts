@@ -87,6 +87,16 @@ export type AuthSessionRow = {
   revoked_at: string | null;
 };
 
+export async function ensureUser(args: { id: string; displayName?: string | null; email?: string | null }) {
+  const rows = await sql<{ id: string }[]>`
+    INSERT INTO users (id, display_name, email)
+    VALUES (${args.id}::uuid, ${args.displayName ?? null}, ${args.email ?? null})
+    ON CONFLICT (id) DO NOTHING
+    RETURNING id
+  `;
+  return rows[0] ?? null;
+}
+
 export type DeviceRow = {
   id: string;
   user_id: string | null;
@@ -518,6 +528,37 @@ export async function createDevice(args: { userId: string; name?: string | null;
     RETURNING id, user_id, created_at, last_seen_at, name, device_type, revoked_at
   `;
   return rows[0]!;
+}
+
+export async function createDeviceWithId(args: {
+  id: string;
+  userId: string;
+  name?: string | null;
+  deviceType?: string | null;
+}) {
+  const rows = await sql<DeviceRow[]>`
+    INSERT INTO devices (id, user_id, name, device_type, last_seen_at)
+    VALUES (
+      ${args.id}::uuid,
+      ${args.userId}::uuid,
+      ${args.name ?? null},
+      ${args.deviceType ?? null},
+      now()
+    )
+    ON CONFLICT (id) DO NOTHING
+    RETURNING id, user_id, created_at, last_seen_at, name, device_type, revoked_at
+  `;
+  return rows[0] ?? null;
+}
+
+export async function getDeviceById(deviceId: string) {
+  const rows = await sql<DeviceRow[]>`
+    SELECT id, user_id, created_at, last_seen_at, name, device_type, revoked_at
+    FROM devices
+    WHERE id = ${deviceId}::uuid
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
 }
 
 export async function listDevices(userId: string) {

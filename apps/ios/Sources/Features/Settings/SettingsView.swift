@@ -5,10 +5,29 @@ struct SettingsView: View {
 
   var body: some View {
     List {
-      Section("Device Pairing") {
-        Button("Create pairing code") {
-          Task { await viewModel.createPairingCode() }
+      Section("Server") {
+        Text(viewModel.baseURL)
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
+      Section("Session") {
+        Text("Device ID: \(viewModel.deviceId)")
+          .font(.caption)
+          .foregroundStyle(.secondary)
+      }
+      if let message = viewModel.errorMessage {
+        Section {
+          Text(message)
+            .foregroundStyle(.red)
         }
+      }
+      Section("Device Pairing") {
+        Button {
+          Task { await viewModel.createPairingCode() }
+        } label: {
+          Text("Create pairing code")
+        }
+        .accessibilityIdentifier("pairing-create")
         if let code = viewModel.pairingCode {
           VStack(alignment: .leading, spacing: 4) {
             Text(code)
@@ -29,10 +48,6 @@ struct SettingsView: View {
             ProgressView()
             Text("Loading…")
           }
-        }
-        if let message = viewModel.errorMessage {
-          Text(message)
-            .foregroundStyle(.red)
         }
         if viewModel.devices.isEmpty && !viewModel.isLoading {
           Text("No devices yet.")
@@ -59,8 +74,8 @@ struct SettingsView: View {
       }
     }
     .navigationTitle("Settings")
-    .task {
-      await viewModel.loadDevices()
+    .onAppear {
+      Task { await viewModel.loadDevices() }
     }
   }
 }

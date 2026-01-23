@@ -1,0 +1,11 @@
+{
+  "name": "floorplan-appium",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "ios": "bun run run-ios.ts"
+  },
+  "dependencies": {
+    "webdriverio": "9.12.0"
+  }
+}

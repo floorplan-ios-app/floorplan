@@ -13,12 +13,28 @@
 
 ## Local development
 1. `bun install`
-2. `docker compose up -d`
-3. `bun run dev` (API + web)
+2. Start local dependencies using Apple `container`:
+   - `container system start`
+   - `container start floorplan-postgres`
+3. Run the API (in one terminal):
+   - `cd services/api`
+   - `HOST=0.0.0.0 PORT=8787 DATABASE_URL="postgres://postgres:postgres@192.168.64.2:5432/floorplan" bun run dev`
+4. Optional: run web (when implemented): `bun run dev`
 
 ## iOS build
 - Generate project: `bun run ios:gen`
-- Open in Xcode and run.
+- Open in Xcode and run on the iOS Simulator.
+
+## Appium testing (manual + scripted)
+1. Start Appium server:
+   - `cd tools/appium`
+   - `npx appium --base-path /`
+2. Build app for simulator:
+   - `cd apps/ios`
+   - `xcodebuild -project FloorPlanTracer.xcodeproj -scheme FloorPlanTracer -destination 'platform=iOS Simulator,name=iPhone 12 mini' -configuration Debug -derivedDataPath build build`
+3. Run scripted flow (captures screenshots in `tools/appium/appium-artifacts/`):
+   - `cd tools/appium`
+   - `IOS_APP_PATH=".../apps/ios/build/Build/Products/Debug-iphonesimulator/FloorPlanTracer.app" IOS_UDID="iPhone 12 mini UDID" IOS_DEVICE_NAME="iPhone 12 mini" API_BASE="http://127.0.0.1:8787" bun run ios`
 
 ## Repo health
 - Markdown lint: `bun run docs:lint`
@@ -29,7 +45,8 @@
 
 Bring up local dependencies:
 ```bash
-docker compose up -d
+container system start
+container start floorplan-postgres
 ```
 
 Run migrations:

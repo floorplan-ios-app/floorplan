@@ -16,7 +16,7 @@ It assumes:
 ## Responsibilities
 
 ### Core responsibilities
-- Identity and authentication (Sign in with Apple + passkeys; device pairing for “web companion”).
+- Identity and authentication (Sign in with Apple + passkeys; anonymous device auth; optional device pairing for “web companion”).
 - Authorization: org/workspace/projects, roles (owner/editor/viewer), sharing links.
 - Project persistence (operation logs + snapshots + version history).
 - Asset library: upload, validate, dedupe, transform, distribute.
@@ -41,7 +41,7 @@ This aligns with “MonolithFirst” guidance: start with a monolith, split only
 ## Logical modules
 
 1. **Auth & Accounts**
-   - Sign in with Apple, passkeys, email magic link (optional).
+   - Sign in with Apple, passkeys, anonymous device auth, email magic link (optional).
    - Device registry, sessions, token rotation, revocation.
    - Pairing flows (for companion web app) as a special case.
    - Pairing security requirements are defined in `DEVICE_PAIRING_SPEC.md`.
@@ -237,6 +237,10 @@ A single-region realtime gateway that:
 This appendix is intentionally verbose to make backend build-out mechanical.
 
 ### Authentication & sessions
+- `POST /v1/auth/session`
+  - input: optional user/device identifiers for anonymous bootstrap
+  - behavior: if `deviceId` is provided, ensure a `devices` row exists for the user
+  - output: access token + refresh token + user id
 - `POST /v1/auth/apple`
   - input: apple identity token
   - output: access token + refresh token + user profile

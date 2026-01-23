@@ -7,10 +7,12 @@ struct ContentView: View {
         .tabItem {
           Label("Projects", systemImage: "square.grid.2x2")
         }
+        .accessibilityIdentifier("tab-projects")
       SettingsView()
         .tabItem {
           Label("Settings", systemImage: "gearshape")
         }
+        .accessibilityIdentifier("tab-settings")
     }
   }
 }

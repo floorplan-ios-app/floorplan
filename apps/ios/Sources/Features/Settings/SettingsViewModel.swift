@@ -7,46 +7,71 @@ final class SettingsViewModel: ObservableObject {
   @Published var devices: [DeviceSummary] = []
   @Published var errorMessage: String?
   @Published var isLoading = false
+  @Published var baseURL = ""
+  @Published var deviceId = "unknown"
 
   private let apiClient: ApiClient
 
   init(apiClient: ApiClient = .shared) {
     self.apiClient = apiClient
+    self.baseURL = apiClient.baseURLString
+    self.deviceId = apiClient.deviceIdString
   }
 
   func loadDevices() async {
     isLoading = true
     errorMessage = nil
+    defer { isLoading = false }
     do {
       devices = try await apiClient.listDevices()
     } catch {
-      errorMessage = "Failed to load devices."
+      if (error as? CancellationError) == nil {
+        errorMessage = "Failed to load devices. \(describe(error))"
+      }
     }
-    isLoading = false
   }
 
   func createPairingCode() async {
     isLoading = true
     errorMessage = nil
+    defer { isLoading = false }
     do {
       let result = try await apiClient.createPairingCode(deviceName: "iOS", deviceType: "ios")
       pairingCode = result.code
       pairingExpiresAt = result.expiresAt
+      await loadDevices()
     } catch {
-      errorMessage = "Failed to create pairing code."
+      if (error as? CancellationError) == nil {
+        errorMessage = "Failed to create pairing code. \(describe(error))"
+      }
     }
-    isLoading = false
   }
 
   func revokeDevice(id: UUID) async {
     isLoading = true
     errorMessage = nil
+    defer { isLoading = false }
     do {
       _ = try await apiClient.revokeDevice(deviceId: id)
       devices.removeAll { $0.id == id }
     } catch {
-      errorMessage = "Failed to revoke device."
+      if (error as? CancellationError) == nil {
+        errorMessage = "Failed to revoke device. \(describe(error))"
+      }
     }
-    isLoading = false
   }
+}
+
+private func describe(_ error: Error) -> String {
+  let nsError = error as NSError
+  if let body = nsError.userInfo["body"] as? String, !body.isEmpty {
+    return body
+  }
+  if nsError.domain == NSURLErrorDomain {
+    return "\(nsError.localizedDescription) (code \(nsError.code))"
+  }
+  if !nsError.localizedDescription.isEmpty {
+    return nsError.localizedDescription
+  }
+  return "Unknown error."
 }

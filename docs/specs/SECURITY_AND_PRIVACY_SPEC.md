@@ -40,6 +40,15 @@ This document specifies:
 - Offer passkeys where appropriate for a passwordless experience.
 - For web logins, use OAuth best practices for native apps and PKCE.
 
+### Anonymous device identity (required for core usage)
+- The app must be usable without device pairing or explicit login.
+- On first launch, mint a device-bound identity (Keychain keypair) and request
+  an anonymous session from the backend.
+- Store anonymous identity + refresh token in Keychain.
+- Optional: allow opt-in iCloud Keychain/app data sync for identity portability.
+- When a device identifier is supplied, the backend creates a device session record so
+  revocation and device listing work without pairing.
+
 ### Device pairing (web companion)
 A pairing flow is acceptable for:
 - quickly linking a browser to an already-signed-in iOS device
@@ -52,6 +61,7 @@ Hard requirements:
 - rate-limit pairing attempts by IP + user; lock after repeated failures
 - all sessions can be revoked immediately from the device
 - full flow details live in `DEVICE_PAIRING_SPEC.md`
+- pairing is optional and must not be required to use core features
 
 ---
 

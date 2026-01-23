@@ -36,11 +36,16 @@ export type DbStorage = {
     revokeSession: typeof repos.revokeSession;
     revokeSessionsByDevice: typeof repos.revokeSessionsByDevice;
   };
+  users: {
+    ensure: typeof repos.ensureUser;
+  };
   audit: {
     log: typeof repos.createAuditLog;
   };
   devices: {
     create: typeof repos.createDevice;
+    createWithId: typeof repos.createDeviceWithId;
+    getById: typeof repos.getDeviceById;
     list: typeof repos.listDevices;
     revoke: typeof repos.revokeDevice;
   };
@@ -88,11 +93,16 @@ export function createDbStorage(): DbStorage {
       revokeSession: repos.revokeSession,
       revokeSessionsByDevice: repos.revokeSessionsByDevice,
     },
+    users: {
+      ensure: repos.ensureUser,
+    },
     audit: {
       log: repos.createAuditLog,
     },
     devices: {
       create: repos.createDevice,
+      createWithId: repos.createDeviceWithId,
+      getById: repos.getDeviceById,
       list: repos.listDevices,
       revoke: repos.revokeDevice,
     },

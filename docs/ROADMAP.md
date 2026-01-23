@@ -6,14 +6,17 @@
 - Minimal API (auth stub, project CRUD stub)
 - Minimal iOS app shell (routing + empty editor surface)
 - Minimal web viewer (load dummy project)
-- Device pairing + session management (companion web)
+- Anonymous auth session + device identity (Keychain-backed)
+- Device pairing + session management (optional companion web)
 - Project rename via op-log
+- Appium smoke flow (manual → scripted) for core usage path
 
 ## Milestone 1 — 2D floorplan editor (iOS)
 - Node/wall editing (grid + snapping)
 - Rooms derivation + measurements
 - Undo/redo
 - Import from RoomPlan scan
+- Editor tool parity on iPhone (select/draw/pan/opening)
 
 ## Milestone 2 — 3D editor + AR preview
 - 3D reconstruction
@@ -24,6 +27,7 @@
 - Offline-first sync
 - Realtime presence + cursors
 - Conflict UX
+- Device list + revoke UI (paired sessions)
 
 ## Milestone 4 — Asset pipeline + AI
 - Upload, optimization, thumbnails
