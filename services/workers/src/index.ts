@@ -7,4 +7,12 @@
  * - thumbnail rendering
  * - AI generation requests (server-mediated)
  */
-console.log("workers scaffold: no jobs configured yet");
+
+import { createLogger } from "./observability";
+
+const logger = createLogger("workers");
+
+logger.info("workers.start", {
+  jobsConfigured: false,
+  note: "workers scaffold: no jobs configured yet",
+});

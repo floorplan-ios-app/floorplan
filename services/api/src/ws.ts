@@ -4,7 +4,15 @@
 
 type WS = {
   send(data: string | Uint8Array): void;
-  data: { id: string; actorId?: string | null; topics?: Set<string> };
+  data: {
+    id: string;
+    actorId?: string | null;
+    topics?: Set<string>;
+    userId?: string;
+    projectId?: string;
+    projectRole?: string;
+    traceId?: string;
+  };
 };
 
 type HubEvent = {

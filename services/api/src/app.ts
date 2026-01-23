@@ -3,6 +3,7 @@ import { cors } from "hono/cors";
 import { z } from "zod";
 import { OpBatchUpload } from "@floorplan/sync";
 import { createDbStorage, createLocalObjectStore } from "./storage";
+import { createLogger, requestTracing } from "./observability";
 
 const UUID = z.string().uuid();
 const RefreshTokenSchema = z.string().min(1);
@@ -18,6 +19,18 @@ function actorFromHeaders(req: Request): string | null {
 
 function userFromHeaders(req: Request): string | null {
   return req.headers.get("x-user-id");
+}
+
+export const ProjectRole = z.enum(["owner", "editor", "viewer"]);
+export const allowedProjectRoles = ProjectRole.options;
+type ProjectRole = z.infer<typeof ProjectRole>;
+
+function requireProjectRole(c: any, allowed: ProjectRole[]): ProjectRole | null {
+  const role = c.req.header("x-project-role");
+  const parsed = ProjectRole.safeParse(role);
+  if (!parsed.success) return null;
+  if (!allowed.includes(parsed.data)) return null;
+  return parsed.data;
 }
 
 function ipFromRequest(req: Request): string | null {
@@ -45,10 +58,18 @@ export function createApp(deps: AppDeps = {}) {
   const db = createDbStorage();
   const objectStore = createLocalObjectStore();
   const publishEvent = deps.publishEvent ?? (() => undefined);
+  const logger = createLogger("api");
 
   app.use("*", cors());
+  app.use("*", requestTracing(logger));
 
   app.get("/health", (c) => c.json({ status: "ok" }));
+
+  const resolveUserId = async (c: any) => {
+    const token = tokenFromRequest(c.req.raw);
+    const session = token ? await db.auth.getSessionByAccessToken(token) : null;
+    return session?.user_id ?? userFromHeaders(c.req.raw);
+  };
 
   app.post("/v1/auth/session", async (c) => {
     const body = await c.req.json().catch(() => null);
@@ -175,9 +196,8 @@ export function createApp(deps: AppDeps = {}) {
   });
 
   app.get("/v1/projects", async (c) => {
-    const token = tokenFromRequest(c.req.raw);
-    const session = token ? await db.auth.getSessionByAccessToken(token) : null;
-    const userId = session?.user_id ?? userFromHeaders(c.req.raw);
+    const userId = await resolveUserId(c);
+    if (!userId) return c.json({ error: "missing x-user-id" }, 401);
     const rows = await db.projects.list(userId);
     return c.json({ projects: rows });
   });
@@ -186,9 +206,8 @@ export function createApp(deps: AppDeps = {}) {
     const body = await c.req.json().catch(() => null);
     const parsed = z.object({ name: z.string().min(1) }).safeParse(body);
     if (!parsed.success) return c.json({ error: "invalid body" }, 400);
-    const token = tokenFromRequest(c.req.raw);
-    const session = token ? await db.auth.getSessionByAccessToken(token) : null;
-    const userId = session?.user_id ?? userFromHeaders(c.req.raw);
+    const userId = await resolveUserId(c);
+    if (!userId) return c.json({ error: "missing x-user-id" }, 401);
     const project = await db.projects.create({ name: parsed.data.name, ownerUserId: userId });
 
     await db.audit.log({
@@ -210,6 +229,12 @@ export function createApp(deps: AppDeps = {}) {
     const id = c.req.param("id");
     const parsed = UUID.safeParse(id);
     if (!parsed.success) return c.json({ error: "invalid id" }, 400);
+
+    const userId = await resolveUserId(c);
+    if (!userId) return c.json({ error: "missing x-user-id" }, 401);
+    if (!requireProjectRole(c, ["owner", "editor", "viewer"])) {
+      return c.json({ error: "insufficient role" }, 403);
+    }
 
     const project = await db.projects.get(id);
     if (!project) return c.json({ error: "not found" }, 404);
@@ -251,6 +276,13 @@ export function createApp(deps: AppDeps = {}) {
     const id = c.req.param("id");
     const parsedId = UUID.safeParse(id);
     if (!parsedId.success) return c.json({ error: "invalid id" }, 400);
+
+    const userId = await resolveUserId(c);
+    if (!userId) return c.json({ error: "missing x-user-id" }, 401);
+    if (!requireProjectRole(c, ["owner", "editor"])) {
+      return c.json({ error: "insufficient role" }, 403);
+    }
+
     const body = await c.req.json().catch(() => null);
     const parsed = z
       .object({ name: z.string().min(1).optional(), metadata: z.record(z.any()).optional() })
@@ -261,7 +293,7 @@ export function createApp(deps: AppDeps = {}) {
     if (!updated) return c.json({ error: "not found" }, 404);
 
     await db.audit.log({
-      userId: userFromHeaders(c.req.raw),
+      userId,
       actorId: actorFromHeaders(c.req.raw),
       action: "project.update",
       resourceType: "project",
@@ -279,11 +311,18 @@ export function createApp(deps: AppDeps = {}) {
     const id = c.req.param("id");
     const parsedId = UUID.safeParse(id);
     if (!parsedId.success) return c.json({ error: "invalid id" }, 400);
+
+    const userId = await resolveUserId(c);
+    if (!userId) return c.json({ error: "missing x-user-id" }, 401);
+    if (!requireProjectRole(c, ["owner"])) {
+      return c.json({ error: "insufficient role" }, 403);
+    }
+
     const deleted = await db.projects.delete(id);
     if (!deleted) return c.json({ error: "not found" }, 404);
 
     await db.audit.log({
-      userId: userFromHeaders(c.req.raw),
+      userId,
       actorId: actorFromHeaders(c.req.raw),
       action: "project.delete",
       resourceType: "project",
@@ -302,6 +341,12 @@ export function createApp(deps: AppDeps = {}) {
     const parsed = UUID.safeParse(id);
     if (!parsed.success) return c.json({ error: "invalid id" }, 400);
 
+    const userId = await resolveUserId(c);
+    if (!userId) return c.json({ error: "missing x-user-id" }, 401);
+    if (!requireProjectRole(c, ["owner", "editor"])) {
+      return c.json({ error: "insufficient role" }, 403);
+    }
+
     const actorId = actorFromHeaders(c.req.raw);
     if (!actorId) return c.json({ error: "missing x-actor-id" }, 401);
 
@@ -319,7 +364,7 @@ export function createApp(deps: AppDeps = {}) {
     const response = await db.projects.appendOps(id, batch.data.ops);
 
     await db.audit.log({
-      userId: userFromHeaders(c.req.raw),
+      userId,
       actorId,
       action: "sync.ops.append",
       resourceType: "project",
@@ -341,6 +386,12 @@ export function createApp(deps: AppDeps = {}) {
     const id = c.req.param("id");
     const parsed = UUID.safeParse(id);
     if (!parsed.success) return c.json({ error: "invalid id" }, 400);
+
+    const userId = await resolveUserId(c);
+    if (!userId) return c.json({ error: "missing x-user-id" }, 401);
+    if (!requireProjectRole(c, ["owner", "editor", "viewer"])) {
+      return c.json({ error: "insufficient role" }, 403);
+    }
 
     const after = Number(c.req.query("afterServerSeq") ?? "0");
     const limit = Math.min(Number(c.req.query("limit") ?? "200"), 1000);
