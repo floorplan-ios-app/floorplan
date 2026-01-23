@@ -87,6 +87,27 @@ export type AuthSessionRow = {
   revoked_at: string | null;
 };
 
+export type DeviceRow = {
+  id: string;
+  user_id: string | null;
+  created_at: string;
+  last_seen_at: string | null;
+  name: string | null;
+  device_type: string | null;
+  revoked_at: string | null;
+};
+
+export type PairingCodeRow = {
+  id: string;
+  user_id: string;
+  code: string;
+  expires_at: string;
+  created_at: string;
+  used_at: string | null;
+  device_name: string | null;
+  device_type: string | null;
+};
+
 export type AuditLogRow = {
   id: string;
   created_at: string;
@@ -467,6 +488,99 @@ export async function revokeSession(accessToken: string) {
       AND revoked_at IS NULL
     RETURNING id, user_id, device_id, access_token_hash, refresh_token_hash,
       access_expires_at, refresh_expires_at, created_at, updated_at, revoked_at
+  `;
+  return rows[0] ?? null;
+}
+
+export async function revokeSessionsByDevice(deviceId: string) {
+  const rows = await sql<AuthSessionRow[]>`
+    UPDATE auth_sessions
+    SET revoked_at = now(), updated_at = now()
+    WHERE device_id = ${deviceId}::uuid
+      AND revoked_at IS NULL
+    RETURNING id, user_id, device_id, access_token_hash, refresh_token_hash,
+      access_expires_at, refresh_expires_at, created_at, updated_at, revoked_at
+  `;
+  return rows;
+}
+
+export async function createDevice(args: { userId: string; name?: string | null; deviceType?: string | null }) {
+  const id = randomUUID();
+  const rows = await sql<DeviceRow[]>`
+    INSERT INTO devices (id, user_id, name, device_type, last_seen_at)
+    VALUES (
+      ${id}::uuid,
+      ${args.userId}::uuid,
+      ${args.name ?? null},
+      ${args.deviceType ?? null},
+      now()
+    )
+    RETURNING id, user_id, created_at, last_seen_at, name, device_type, revoked_at
+  `;
+  return rows[0]!;
+}
+
+export async function listDevices(userId: string) {
+  const rows = await sql<DeviceRow[]>`
+    SELECT id, user_id, created_at, last_seen_at, name, device_type, revoked_at
+    FROM devices
+    WHERE user_id = ${userId}::uuid
+    ORDER BY created_at DESC
+  `;
+  return rows;
+}
+
+export async function revokeDevice(deviceId: string) {
+  const rows = await sql<DeviceRow[]>`
+    UPDATE devices
+    SET revoked_at = now()
+    WHERE id = ${deviceId}::uuid
+    RETURNING id, user_id, created_at, last_seen_at, name, device_type, revoked_at
+  `;
+  return rows[0] ?? null;
+}
+
+export async function createPairingCode(args: {
+  userId: string;
+  code: string;
+  expiresAt: string;
+  deviceName?: string | null;
+  deviceType?: string | null;
+}) {
+  const id = randomUUID();
+  const rows = await sql<PairingCodeRow[]>`
+    INSERT INTO pairing_codes (id, user_id, code, expires_at, device_name, device_type)
+    VALUES (
+      ${id}::uuid,
+      ${args.userId}::uuid,
+      ${args.code},
+      ${args.expiresAt}::timestamptz,
+      ${args.deviceName ?? null},
+      ${args.deviceType ?? null}
+    )
+    RETURNING id, user_id, code, expires_at, created_at, used_at, device_name, device_type
+  `;
+  return rows[0]!;
+}
+
+export async function getPairingCodeByCode(code: string) {
+  const rows = await sql<PairingCodeRow[]>`
+    SELECT id, user_id, code, expires_at, created_at, used_at, device_name, device_type
+    FROM pairing_codes
+    WHERE code = ${code}
+      AND used_at IS NULL
+      AND expires_at > now()
+    LIMIT 1
+  `;
+  return rows[0] ?? null;
+}
+
+export async function markPairingCodeUsed(id: string) {
+  const rows = await sql<PairingCodeRow[]>`
+    UPDATE pairing_codes
+    SET used_at = now()
+    WHERE id = ${id}::uuid
+    RETURNING id, user_id, code, expires_at, created_at, used_at, device_name, device_type
   `;
   return rows[0] ?? null;
 }

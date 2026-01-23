@@ -65,3 +65,31 @@ export const ApiCreateShareRequest = z.object({
 export const ApiShareResponse = z.object({
   share: ApiShareRow,
 });
+
+export const ApiDeviceRow = z.object({
+  id: z.string().uuid(),
+  user_id: z.string().uuid().nullable(),
+  created_at: z.string(),
+  last_seen_at: z.string().nullable(),
+  name: z.string().nullable(),
+  device_type: z.string().nullable(),
+  revoked_at: z.string().nullable(),
+});
+
+export const ApiDevicesResponse = z.object({
+  devices: z.array(ApiDeviceRow),
+});
+
+export const ApiPairingCreateResponse = z.object({
+  pairingId: z.string().uuid(),
+  code: z.string().min(4),
+  expiresAt: z.string(),
+});
+
+export const ApiPairingCompleteResponse = z.object({
+  accessToken: z.string().min(1),
+  refreshToken: z.string().min(1),
+  accessExpiresAt: z.string(),
+  refreshExpiresAt: z.string(),
+  deviceId: z.string().uuid(),
+});

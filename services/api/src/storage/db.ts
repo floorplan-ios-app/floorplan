@@ -34,9 +34,20 @@ export type DbStorage = {
     getSessionByAccessToken: typeof repos.getSessionByAccessToken;
     rotateSessionByRefresh: typeof repos.rotateSessionByRefresh;
     revokeSession: typeof repos.revokeSession;
+    revokeSessionsByDevice: typeof repos.revokeSessionsByDevice;
   };
   audit: {
     log: typeof repos.createAuditLog;
+  };
+  devices: {
+    create: typeof repos.createDevice;
+    list: typeof repos.listDevices;
+    revoke: typeof repos.revokeDevice;
+  };
+  pairing: {
+    createCode: typeof repos.createPairingCode;
+    getByCode: typeof repos.getPairingCodeByCode;
+    markUsed: typeof repos.markPairingCodeUsed;
   };
 };
 
@@ -75,9 +86,20 @@ export function createDbStorage(): DbStorage {
       getSessionByAccessToken: repos.getSessionByAccessToken,
       rotateSessionByRefresh: repos.rotateSessionByRefresh,
       revokeSession: repos.revokeSession,
+      revokeSessionsByDevice: repos.revokeSessionsByDevice,
     },
     audit: {
       log: repos.createAuditLog,
+    },
+    devices: {
+      create: repos.createDevice,
+      list: repos.listDevices,
+      revoke: repos.revokeDevice,
+    },
+    pairing: {
+      createCode: repos.createPairingCode,
+      getByCode: repos.getPairingCodeByCode,
+      markUsed: repos.markPairingCodeUsed,
     },
   };
 }
