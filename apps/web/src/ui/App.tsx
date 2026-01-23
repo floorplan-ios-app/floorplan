@@ -3,6 +3,10 @@ import type { ProjectSummary } from "@floorplan/shared";
 import {
   apiCreateProject,
   apiCreateShare,
+  apiCreatePairingCode,
+  apiCompletePairing,
+  apiListDevices,
+  apiRevokeDevice,
   apiGetProject,
   apiHealth,
   apiListProjects,
@@ -38,6 +42,11 @@ export function App() {
   const [createName, setCreateName] = useState("");
   const [renameName, setRenameName] = useState("");
   const [renameLoading, setRenameLoading] = useState(false);
+  const [pairingInput, setPairingInput] = useState("");
+  const [pairingCode, setPairingCode] = useState<{ code: string; expiresAt: string } | null>(null);
+  const [pairingResult, setPairingResult] = useState<{ accessToken: string; refreshToken: string } | null>(null);
+  const [devices, setDevices] = useState<{ id: string; name: string | null; device_type: string | null; revoked_at: string | null }[]>([]);
+  const [devicesLoading, setDevicesLoading] = useState(false);
   const [shareState, setShareState] = useState<ShareState | null>(null);
   const [activityLog, setActivityLog] = useState<string[]>([]);
   const [realtimeStatus, setRealtimeStatus] = useState("idle");
@@ -83,6 +92,18 @@ export function App() {
     };
   }, []);
 
+  const refreshDevices = async () => {
+    setDevicesLoading(true);
+    try {
+      const payload = await apiListDevices();
+      setDevices(payload.devices);
+    } catch (e) {
+      setActivityLog((prev) => [`${new Date().toLocaleTimeString()} · device load failed`, ...prev]);
+    } finally {
+      setDevicesLoading(false);
+    }
+  };
+
   useEffect(() => {
     if (!selectedProject) return;
     const client = createRealtimeClient({
@@ -107,6 +128,10 @@ export function App() {
     });
     return () => client.close();
   }, [apiBase, selectedProject]);
+
+  useEffect(() => {
+    void refreshDevices();
+  }, []);
 
   const onCreateProject = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -194,6 +219,42 @@ export function App() {
       `${new Date().toLocaleTimeString()} · copied share link (${shareState.mode})`,
       ...prev,
     ]);
+  };
+
+  const onCreatePairing = async () => {
+    setProjectError(null);
+    try {
+      const payload = await apiCreatePairingCode({ deviceName: "Web", deviceType: "web" });
+      setPairingCode({ code: payload.code, expiresAt: payload.expiresAt });
+      setActivityLog((prev) => [`${new Date().toLocaleTimeString()} · pairing code created`, ...prev]);
+    } catch (e) {
+      setProjectError(String(e));
+    }
+  };
+
+  const onCompletePairing = async (event: React.FormEvent) => {
+    event.preventDefault();
+    const trimmed = pairingInput.trim();
+    if (!trimmed) return;
+    setProjectError(null);
+    try {
+      const payload = await apiCompletePairing(trimmed, { deviceName: "Web", deviceType: "web" });
+      setPairingResult({ accessToken: payload.accessToken, refreshToken: payload.refreshToken });
+      setPairingInput("");
+      await refreshDevices();
+      setActivityLog((prev) => [`${new Date().toLocaleTimeString()} · pairing complete`, ...prev]);
+    } catch (e) {
+      setProjectError(String(e));
+    }
+  };
+
+  const onRevokeDevice = async (deviceId: string) => {
+    try {
+      await apiRevokeDevice(deviceId);
+      await refreshDevices();
+    } catch (e) {
+      setProjectError(String(e));
+    }
   };
 
   const selectedMeta = useMemo(() => {
@@ -316,6 +377,57 @@ export function App() {
                 </a>
               </div>
             )}
+          </div>
+
+          <div style={{ border: "1px solid #ddd", padding: 16, borderRadius: 12 }}>
+            <h2 style={{ marginTop: 0 }}>Device Pairing</h2>
+            <div style={{ display: "grid", gap: 12 }}>
+              <button onClick={onCreatePairing}>Create pairing code</button>
+              {pairingCode && (
+                <div>
+                  <div style={{ fontSize: 18, fontWeight: 600 }}>{pairingCode.code}</div>
+                  <div style={{ fontSize: 12, color: "#666" }}>Expires {formatTimestamp(pairingCode.expiresAt)}</div>
+                </div>
+              )}
+              <form onSubmit={onCompletePairing} style={{ display: "flex", gap: 8 }}>
+                <input
+                  type="text"
+                  value={pairingInput}
+                  onChange={(event) => setPairingInput(event.target.value)}
+                  placeholder="Enter pairing code"
+                  style={{ flex: 1, padding: "6px 8px" }}
+                />
+                <button type="submit">Complete</button>
+              </form>
+              {pairingResult && (
+                <div style={{ fontSize: 12 }}>
+                  <div>Access token: {pairingResult.accessToken.slice(0, 12)}…</div>
+                  <div>Refresh token: {pairingResult.refreshToken.slice(0, 12)}…</div>
+                </div>
+              )}
+              <div>
+                <div style={{ fontWeight: 600, marginBottom: 6 }}>Devices</div>
+                {devicesLoading ? (
+                  <div>Loading devices…</div>
+                ) : (
+                  <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
+                    {devices.map((device) => (
+                      <li key={device.id} style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                        <span>
+                          {device.name ?? device.id.slice(0, 8)} {device.device_type ? `(${device.device_type})` : ""}
+                        </span>
+                        <button
+                          onClick={() => onRevokeDevice(device.id)}
+                          disabled={Boolean(device.revoked_at)}
+                        >
+                          {device.revoked_at ? "Revoked" : "Revoke"}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
           </div>
 
           <div style={{ border: "1px solid #ddd", padding: 16, borderRadius: 12 }}>

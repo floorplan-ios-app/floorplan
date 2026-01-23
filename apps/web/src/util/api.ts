@@ -1,8 +1,11 @@
 import {
   ApiAppendOpsResponse,
+  ApiDevicesResponse,
   ApiCreateShareRequest,
   ApiCreateProjectRequest,
   ApiListProjectsResponse,
+  ApiPairingCompleteResponse,
+  ApiPairingCreateResponse,
   ApiProjectResponse,
   ApiShareResponse,
   ProjectSummary,
@@ -101,4 +104,45 @@ export async function apiCreateShare(
   });
   const payload = await parseJson(response, ApiShareResponse);
   return payload.share;
+}
+
+export async function apiCreatePairingCode(options?: {
+  deviceName?: string;
+  deviceType?: string;
+  ttlSeconds?: number;
+}): Promise<ApiPairingCreateResponse> {
+  const response = await fetch(`${API_BASE}/v1/pairing/create`, {
+    method: "POST",
+    headers: getApiHeaders(),
+    body: JSON.stringify(options ?? {}),
+  });
+  return parseJson(response, ApiPairingCreateResponse);
+}
+
+export async function apiCompletePairing(code: string, options?: { deviceName?: string; deviceType?: string }) {
+  const response = await fetch(`${API_BASE}/v1/pairing/complete`, {
+    method: "POST",
+    headers: getApiHeaders(),
+    body: JSON.stringify({ code, ...(options ?? {}) }),
+  });
+  return parseJson(response, ApiPairingCompleteResponse);
+}
+
+export async function apiListDevices() {
+  const response = await fetch(`${API_BASE}/v1/devices`, {
+    headers: getApiHeaders(),
+  });
+  return parseJson(response, ApiDevicesResponse);
+}
+
+export async function apiRevokeDevice(deviceId: string) {
+  const response = await fetch(`${API_BASE}/v1/devices/${deviceId}/revoke`, {
+    method: "POST",
+    headers: getApiHeaders(),
+  });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Request failed: ${response.status} ${response.statusText} ${text}`.trim());
+  }
+  return true;
 }
