@@ -1,4 +1,4 @@
--- 0002_project_shares.sql
+-- 0004_project_shares.sql
 -- Add share links for projects.
 
 BEGIN;
