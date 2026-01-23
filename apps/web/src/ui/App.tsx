@@ -6,6 +6,7 @@ import {
   apiGetProject,
   apiHealth,
   apiListProjects,
+  apiAppendOps,
   getApiHeaders,
 } from "../util/api";
 import { createRealtimeClient, RealtimeEvent } from "../util/realtime";
@@ -35,9 +36,12 @@ export function App() {
   const [loadingProjects, setLoadingProjects] = useState(false);
   const [projectError, setProjectError] = useState<string | null>(null);
   const [createName, setCreateName] = useState("");
+  const [renameName, setRenameName] = useState("");
+  const [renameLoading, setRenameLoading] = useState(false);
   const [shareState, setShareState] = useState<ShareState | null>(null);
   const [activityLog, setActivityLog] = useState<string[]>([]);
   const [realtimeStatus, setRealtimeStatus] = useState("idle");
+  const opCounters = React.useRef({ clientSeq: 0, lamport: 0 });
 
   const apiBase = import.meta.env.VITE_API_BASE ?? "http://localhost:8787";
 
@@ -140,6 +144,49 @@ export function App() {
     }
   };
 
+  const onRenameProject = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!selectedProject) return;
+    const trimmed = renameName.trim();
+    if (!trimmed) return;
+    setProjectError(null);
+    setRenameLoading(true);
+    try {
+      opCounters.current.clientSeq += 1;
+      opCounters.current.lamport += 1;
+      const op = {
+        schemaVersion: 1,
+        projectId: selectedProject.id,
+        clientOpId: crypto.randomUUID(),
+        actorId,
+        deviceId: "web",
+        clientTime: Date.now(),
+        baseSeq: 0,
+        op: {
+          type: "RenameProject",
+          name: trimmed,
+        },
+        lamport: opCounters.current.lamport,
+        clientSeq: opCounters.current.clientSeq,
+      };
+      await apiAppendOps(selectedProject.id, [op]);
+      const refreshed = await apiGetProject(selectedProject.id);
+      setSelectedProject(refreshed);
+      setProjects((prev) =>
+        prev.map((item) => (item.id === refreshed.id ? refreshed : item))
+      );
+      setRenameName("");
+      setActivityLog((prev) => [
+        `${new Date().toLocaleTimeString()} · renamed project`,
+        ...prev,
+      ]);
+    } catch (e) {
+      setProjectError(String(e));
+    } finally {
+      setRenameLoading(false);
+    }
+  };
+
   const onCopyShare = async () => {
     if (!shareState) return;
     await navigator.clipboard.writeText(shareState.link).catch(() => undefined);
@@ -220,6 +267,21 @@ export function App() {
             {selectedProject ? (
               <div style={{ display: "grid", gap: 8 }}>
                 <div style={{ fontSize: 18, fontWeight: 600 }}>{selectedProject.name}</div>
+                <form onSubmit={onRenameProject} style={{ display: "flex", gap: 8 }}>
+                  <input
+                    type="text"
+                    value={renameName}
+                    onChange={(event) => setRenameName(event.target.value)}
+                    placeholder="Rename project"
+                    style={{ flex: 1, padding: "6px 8px" }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!renameName.trim() || renameLoading}
+                  >
+                    {renameLoading ? "Renaming…" : "Rename"}
+                  </button>
+                </form>
                 <div>ID: {selectedProject.id}</div>
                 <div>Created: {formatTimestamp(selectedProject.createdAt)}</div>
                 <div>Updated: {formatTimestamp(selectedProject.updatedAt)}</div>
