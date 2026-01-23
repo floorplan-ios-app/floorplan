@@ -10,6 +10,10 @@ export type DbStorage = {
     appendOps: typeof repos.appendOps;
     getOpsAfter: typeof repos.getOpsAfter;
   };
+  shares: {
+    create: typeof repos.createProjectShare;
+    getByToken: typeof repos.getProjectShareByToken;
+  };
   assets: {
     create: typeof repos.createAsset;
     get: typeof repos.getAsset;
@@ -46,6 +50,10 @@ export function createDbStorage(): DbStorage {
       list: repos.listProjects,
       appendOps: repos.appendOps,
       getOpsAfter: repos.getOpsAfter,
+    },
+    shares: {
+      create: repos.createProjectShare,
+      getByToken: repos.getProjectShareByToken,
     },
     assets: {
       create: repos.createAsset,

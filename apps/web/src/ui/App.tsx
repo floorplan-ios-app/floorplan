@@ -1,6 +1,13 @@
 import React, { useEffect, useMemo, useState } from "react";
 import type { ProjectSummary } from "@floorplan/shared";
-import { apiCreateProject, apiGetProject, apiHealth, apiListProjects } from "../util/api";
+import {
+  apiCreateProject,
+  apiCreateShare,
+  apiGetProject,
+  apiHealth,
+  apiListProjects,
+  getApiHeaders,
+} from "../util/api";
 import { createRealtimeClient, RealtimeEvent } from "../util/realtime";
 
 const formatTimestamp = (value: string) => {
@@ -38,24 +45,38 @@ export function App() {
     apiHealth().then(setHealth).catch((e) => setHealth(String(e)));
   }, []);
 
-  const refreshProjects = async () => {
+  const refreshProjects = async (options?: {
+    onSettled?: () => void;
+    skipAutoSelect?: boolean;
+    shouldCancel?: () => boolean;
+  }) => {
     setLoadingProjects(true);
     setProjectError(null);
     try {
       const items = await apiListProjects();
+      if (options?.shouldCancel?.()) return;
       setProjects(items);
-      if (items.length && !selectedProject) {
+      if (items.length && !selectedProject && !options?.skipAutoSelect) {
         setSelectedProject(items[0]);
       }
     } catch (e) {
+      if (options?.shouldCancel?.()) return;
       setProjectError(String(e));
     } finally {
+      if (options?.shouldCancel?.()) return;
       setLoadingProjects(false);
+      options?.onSettled?.();
     }
   };
 
   useEffect(() => {
-    refreshProjects();
+    let cancelled = false;
+    void refreshProjects({
+      shouldCancel: () => cancelled,
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -63,6 +84,7 @@ export function App() {
     const client = createRealtimeClient({
       apiBase,
       projectId: selectedProject.id,
+      headers: getApiHeaders(),
       onEvent: (event: RealtimeEvent) => {
         if (event.type === "status") {
           setRealtimeStatus(event.status);
@@ -106,11 +128,16 @@ export function App() {
     }
   };
 
-  const onShare = (mode: "view" | "review") => {
+  const onShare = async (mode: "view" | "review") => {
     if (!selectedProject) return;
-    const token = `${selectedProject.id.slice(0, 8)}-${mode}`;
-    const link = `${window.location.origin}/share/${token}`;
-    setShareState({ token, link, mode });
+    setProjectError(null);
+    try {
+      const share = await apiCreateShare(selectedProject.id, mode);
+      const link = `${window.location.origin}/share/${share.token}`;
+      setShareState({ token: share.token, link, mode: share.mode });
+    } catch (e) {
+      setProjectError(String(e));
+    }
   };
 
   const onCopyShare = async () => {

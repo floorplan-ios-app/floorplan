@@ -1,6 +1,7 @@
 import postgres from "postgres";
 import { randomUUID } from "node:crypto";
 import { AssetJob, AssetVariantType } from "@floorplan/shared";
+import { createLogger } from "./observability";
 
 type AssetJobRow = {
   id: string;
@@ -26,6 +27,7 @@ const sql = postgres(DATABASE_URL, {
   max: Number(process.env.PG_POOL_MAX ?? 5),
   idle_timeout: 20,
 });
+const logger = createLogger("workers");
 
 const buildVariantKey = (variantType: AssetVariantType, sha256: string, metadata?: any) => {
   switch (variantType) {
@@ -233,7 +235,7 @@ const pollLoop = async () => {
   }
 };
 
-console.log("workers online: asset pipeline queue polling");
+logger.info("workers.start", { jobsConfigured: true, job: "asset_pipeline" });
 await pollOnce();
 setInterval(() => {
   void pollLoop();

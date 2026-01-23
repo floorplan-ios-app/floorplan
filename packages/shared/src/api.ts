@@ -44,3 +44,24 @@ export const ApiAppendOpsResponse = z.object({
 });
 
 export type ApiAppendOpsResponse = z.infer<typeof ApiAppendOpsResponse>;
+
+export const ApiShareMode = z.enum(["view", "review"]);
+
+export const ApiShareRow = z.object({
+  id: z.string().uuid(),
+  project_id: z.string().uuid(),
+  token: z.string().min(8),
+  mode: ApiShareMode,
+  created_at: z.string(),
+  created_by_user_id: z.string().uuid().nullable(),
+});
+
+export type ApiShareRow = z.infer<typeof ApiShareRow>;
+
+export const ApiCreateShareRequest = z.object({
+  mode: ApiShareMode,
+});
+
+export const ApiShareResponse = z.object({
+  share: ApiShareRow,
+});

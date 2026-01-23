@@ -143,6 +143,41 @@ Treat floor plans as sensitive:
 - Provide “do not train on my data” setting where vendors support it.
 - Offer local-only AI features when feasible (Core ML).
 
+### Data retention policy (server-side defaults)
+These defaults apply unless a stricter contractual policy exists:
+- Active projects: retained until user deletion.
+- Soft-deleted projects: 30-day grace period before hard delete.
+- Total deletion SLA: 35 days from soft-delete request (30-day grace period + up to 5 days for backup rotation).
+- Project ops/event history: retained with project; hard-deleted with project.
+- Export packages and render outputs: 30 days after creation, unless pinned by user; soft-deleted immediately when a user or project is soft-deleted, and hard-deleted when the grace period ends.
+- Audit logs (sharing/access events): 90 days, then aggregated counts only.
+- Backups: rolling 35-day window; backups are excluded from immediate purge and removed on rotation, consistent with the total deletion SLA (35 days from soft-delete request).
+
+### Export workflow ("Export my data")
+- Authenticated request triggers a background job to assemble a user-scoped archive.
+- Contents: projects + metadata, ops history or latest snapshot, assets (sources + variants),
+  export/renders, account profile, and device/session metadata.
+- Output: a signed URL with short TTL (e.g., 15–60 minutes), and an audit log entry.
+- Rate limit export requests per user: enforce a per-user cap of 2 exports/hour and 5 exports/day on free,
+  10 exports/hour and 50 exports/day on paid tiers, with a maximum of 1 concurrent export per user.
+  Requests above the concurrency limit or quotas are rejected with HTTP 429 (no queue); on completion,
+  notify the user via in-app notification and email (if enabled). Example: paid tier user can run one
+  export at a time and request up to 10 per hour, 50 per day; free tier has the lower caps.
+
+### Delete workflow ("Delete my data")
+- Authenticated request performs a soft delete and starts a retention timer.
+- Within the grace period (30 days): user can restore; access is blocked to others.
+- At soft delete: associated export packages are soft-deleted immediately; a scheduled cleanup will hard-delete
+  export packages when the grace period ends.
+- At grace expiry: hard delete project data, assets, derived artifacts, and any remaining export packages.
+- Delete cascades across related tables and object storage keys, plus search indexes, caches, CDN content,
+  analytics/aggregations, and derived data stores.
+- Backups: total deletion SLA is 35 days from soft-delete request (30-day grace period + up to 5 days for backup rotation);
+  backups are excluded from immediate purge and removed on rotation.
+- User receives confirmation when hard delete completes; log the deletion event. Store deletion-specific audit logs
+  separately from general access logs with retention configured by `deletion_audit_retention` (minimum 24 months,
+  extendable to 3–7 years for data brokers or litigation holds) and document GDPR justification for the retention window.
+
 ---
 
 ## Hardening or removing “remote exec / remote tab automation”
@@ -212,4 +247,3 @@ Implementation notes:
 - Remove/ignore external URL references inside glTF.
 - Optionally scan archives with a malware scanner in workers.
 - For shared links, avoid exposing stable asset URLs; always use signed URLs.
-
