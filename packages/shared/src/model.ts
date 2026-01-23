@@ -97,6 +97,7 @@ export const ProjectV1 = z.object({
 export const Project = ProjectV1;
 
 export const OperationTypeValues = [
+  "RenameProject",
   "AddNode",
   "MoveNode",
   "DeleteNode",
@@ -120,6 +121,10 @@ export const OperationTypeValues = [
 export const OperationType = z.enum(OperationTypeValues);
 
 export const OperationPayload = z.discriminatedUnion("type", [
+  z.object({
+    type: z.literal("RenameProject"),
+    name: NonEmptyString,
+  }),
   z.object({
     type: z.literal("AddNode"),
     node: Node,

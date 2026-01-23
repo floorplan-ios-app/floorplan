@@ -360,9 +360,34 @@ export function createApp(deps: AppDeps = {}) {
       if (opActor !== actorId) {
         return c.json({ error: "actor mismatch" }, 400);
       }
+      if ((op as any).projectId && (op as any).projectId !== id) {
+        return c.json({ error: "project mismatch" }, 400);
+      }
     }
 
     const response = await db.projects.appendOps(id, batch.data.ops);
+
+    const renameOp = [...batch.data.ops]
+      .reverse()
+      .find((op) => (op as any)?.op?.type === "RenameProject") as
+      | { op: { type: "RenameProject"; name: string } }
+      | undefined;
+    if (renameOp) {
+      const updated = await db.projects.update({ id, name: renameOp.op.name });
+      if (updated) {
+        await db.audit.log({
+          userId,
+          actorId,
+          action: "project.rename",
+          resourceType: "project",
+          resourceId: id,
+          ip: ipFromRequest(c.req.raw),
+          userAgent: userAgentFromRequest(c.req.raw),
+          metadata: { name: renameOp.op.name },
+        });
+        publishEvent({ topic: "projects", payload: { type: "project.renamed", project: updated } });
+      }
+    }
 
     await db.audit.log({
       userId,
