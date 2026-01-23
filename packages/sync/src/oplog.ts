@@ -115,10 +115,13 @@ export type OpBatchDownload = z.infer<typeof OpBatchDownload>;
  * - be safe under partial order / replays.
  */
 export function applyOps(state: any, ops: OpEnvelope[]): any {
+  const maxLamport = ops.length
+    ? Math.max(state?._lastLamport ?? 0, ...ops.map((o) => o.lamport))
+    : state?._lastLamport ?? 0;
   return {
     ...state,
     _appliedOps: (state?._appliedOps ?? 0) + ops.length,
-    _lastLamport: Math.max(state?._lastLamport ?? 0, ...ops.map((o) => o.lamport)),
+    _lastLamport: maxLamport,
   };
 }
 

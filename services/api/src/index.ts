@@ -1,11 +1,12 @@
-import { allowedProjectRoles, app } from "./app";
+import { allowedProjectRoles, createApp } from "./app";
 import { createLogger } from "./observability";
-import { websocketHandlers } from "./ws";
+import { createWebsocketHub } from "./ws";
 
 const port = Number(process.env.PORT ?? 8787);
 const logger = createLogger("api");
-const ws = websocketHandlers(logger);
+const hub = createWebsocketHub();
 const allowedProjectRolesSet = new Set(allowedProjectRoles);
+const app = createApp({ publishEvent: hub.publish });
 
 export default {
   port,
@@ -23,7 +24,6 @@ export default {
       if (!projectId) {
         return new Response("missing projectId", { status: 400 });
       }
-      // TODO: verify role from DB (similar to requireProjectRole in app.ts)
       if (!projectRole || !allowedProjectRolesSet.has(projectRole)) {
         return new Response("insufficient role", { status: 403 });
       }
@@ -34,5 +34,5 @@ export default {
     }
     return app.fetch(req);
   },
-  websocket: ws,
+  websocket: hub.handlers,
 };

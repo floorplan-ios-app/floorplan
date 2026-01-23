@@ -1,22 +1,13 @@
 /**
- * WebSocket sync channel (skeleton).
- *
- * For collaboration we eventually want:
- * - per-project channels
- * - auth/session binding
- * - op broadcast with ack cursors
- * - presence (cursor, selection)
- *
- * For now: accepts JSON messages and echoes basic acks.
+ * WebSocket sync channel with topic subscriptions.
  */
-
-import type { Logger } from "./observability";
 
 type WS = {
   send(data: string | Uint8Array): void;
-  close?: () => void;
   data: {
-    id?: string;
+    id: string;
+    actorId?: string | null;
+    topics?: Set<string>;
     userId?: string;
     projectId?: string;
     projectRole?: string;
@@ -24,40 +15,71 @@ type WS = {
   };
 };
 
-export function websocketHandlers(logger: Logger) {
-  return {
-    open(ws: WS) {
-      if (!ws.data.userId || !ws.data.projectId || !ws.data.projectRole) {
-        logger.warn("ws.reject", {
-          traceId: ws.data.traceId,
-          reason: "missing auth headers",
-        });
-        ws.send(JSON.stringify({ type: "error", error: "unauthorized" }));
-        ws.close?.();
-        return;
-      }
+type HubEvent = {
+  topic: string;
+  payload: unknown;
+};
 
-      ws.data.id = crypto.randomUUID();
-      logger.info("ws.open", {
-        traceId: ws.data.traceId,
+const DEFAULT_TOPICS = ["auth", "projects", "assets", "sync"] as const;
+
+export function createWebsocketHub() {
+  const clients = new Map<string, WS>();
+
+  function publish(event: HubEvent) {
+    for (const client of clients.values()) {
+      const topics = client.data.topics ?? new Set();
+      if (!topics.has(event.topic)) continue;
+      client.send(JSON.stringify({ type: "event", topic: event.topic, payload: event.payload }));
+    }
+  }
+
+  function subscribe(ws: WS, topics: string[]) {
+    const allowed = new Set(DEFAULT_TOPICS);
+    ws.data.topics = new Set(topics.filter((topic) => allowed.has(topic as any)));
+    ws.send(
+      JSON.stringify({
+        type: "subscribed",
         wsId: ws.data.id,
-        userId: ws.data.userId,
-        projectId: ws.data.projectId,
-        projectRole: ws.data.projectRole,
-      });
-      ws.send(JSON.stringify({ type: "hello", wsId: ws.data.id }));
+        topics: Array.from(ws.data.topics),
+      }),
+    );
+  }
+
+  return {
+    handlers: {
+      open(ws: WS) {
+        ws.data.id = crypto.randomUUID();
+        ws.data.topics = new Set();
+        clients.set(ws.data.id, ws);
+        ws.send(JSON.stringify({ type: "hello", wsId: ws.data.id, availableTopics: DEFAULT_TOPICS }));
+      },
+      message(ws: WS, message: string | Uint8Array) {
+        const text = typeof message === "string" ? message : new TextDecoder().decode(message);
+        let parsed: any = null;
+        try {
+          parsed = JSON.parse(text);
+        } catch {
+          ws.send(JSON.stringify({ type: "error", wsId: ws.data.id, error: "invalid json" }));
+          return;
+        }
+
+        if (parsed?.type === "subscribe" && Array.isArray(parsed.topics)) {
+          subscribe(ws, parsed.topics);
+          return;
+        }
+
+        if (parsed?.type === "auth" && typeof parsed.actorId === "string") {
+          ws.data.actorId = parsed.actorId;
+          ws.send(JSON.stringify({ type: "auth.ack", wsId: ws.data.id, actorId: ws.data.actorId }));
+          return;
+        }
+
+        ws.send(JSON.stringify({ type: "ack", wsId: ws.data.id, bytes: text.length }));
+      },
+      close(ws: WS) {
+        clients.delete(ws.data.id);
+      },
     },
-    message(ws: WS, message: string | Uint8Array) {
-      const text = typeof message === "string" ? message : new TextDecoder().decode(message);
-      ws.send(JSON.stringify({ type: "ack", wsId: ws.data.id, bytes: text.length }));
-    },
-    close(ws: WS) {
-      logger.info("ws.close", {
-        traceId: ws.data.traceId,
-        wsId: ws.data.id,
-        userId: ws.data.userId,
-        projectId: ws.data.projectId,
-      });
-    },
+    publish,
   };
 }
