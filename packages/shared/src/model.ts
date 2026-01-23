@@ -249,6 +249,8 @@ export type ValidationIssue = {
 export type FloorPlanValidationIssue = {
   code:
     | "duplicate-id"
+    | "missing-wall"
+    | "missing-opening"
     | "missing-node"
     | "invalid-opening-span"
     | "degenerate-wall"
