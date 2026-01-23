@@ -15,10 +15,6 @@ function actorFromHeaders(req: Request): string | null {
   return req.headers.get("x-actor-id");
 }
 
-function userFromHeaders(req: Request): string | null {
-  return req.headers.get("x-user-id");
-}
-
 function ipFromRequest(req: Request): string | null {
   return req.headers.get("x-forwarded-for") ?? req.headers.get("x-real-ip");
 }
@@ -36,7 +32,8 @@ function tokenFromRequest(req: Request): string | null {
 }
 
 function ttlMinutes(value: string | undefined, fallback: number) {
-  return Number.isFinite(Number(value)) ? Number(value) : fallback;
+  const n = Number(value);
+  return value !== undefined && value !== "" && Number.isFinite(n) ? n : fallback;
 }
 
 export function createApp(deps: AppDeps = {}) {
@@ -44,6 +41,24 @@ export function createApp(deps: AppDeps = {}) {
   const db = createDbStorage();
   const objectStore = createLocalObjectStore();
   const publishEvent = deps.publishEvent ?? (() => undefined);
+
+  async function getSessionFromRequest(c: { req: { raw: Request } }) {
+    const token = tokenFromRequest(c.req.raw);
+    if (!token) return null;
+    return db.auth.getSessionByAccessToken(token);
+  }
+
+  async function requireSession(c: { req: { raw: Request }; json: typeof app.json }) {
+    const token = tokenFromRequest(c.req.raw);
+    if (!token) {
+      return { session: null, response: c.json({ error: "missing bearer token" }, 401) };
+    }
+    const session = await db.auth.getSessionByAccessToken(token);
+    if (!session || !session.user_id) {
+      return { session: null, response: c.json({ error: "invalid session" }, 401) };
+    }
+    return { session, response: null };
+  }
 
   app.use("*", cors());
 
@@ -59,7 +74,7 @@ export function createApp(deps: AppDeps = {}) {
       .safeParse(body);
     if (!parsed.success) return c.json({ error: "invalid body" }, 400);
 
-    const userId = parsed.data.userId ?? userFromHeaders(c.req.raw);
+    const userId = parsed.data.userId ?? null;
     const deviceId = parsed.data.deviceId ?? null;
 
     const accessToken = crypto.randomUUID();
@@ -174,10 +189,9 @@ export function createApp(deps: AppDeps = {}) {
   });
 
   app.get("/v1/projects", async (c) => {
-    const token = tokenFromRequest(c.req.raw);
-    const session = token ? await db.auth.getSessionByAccessToken(token) : null;
-    const userId = session?.user_id ?? userFromHeaders(c.req.raw);
-    const rows = await db.projects.list(userId);
+    const { session, response } = await requireSession(c);
+    if (response) return response;
+    const rows = await db.projects.list(session.user_id);
     return c.json({ projects: rows });
   });
 
@@ -185,13 +199,12 @@ export function createApp(deps: AppDeps = {}) {
     const body = await c.req.json().catch(() => null);
     const parsed = z.object({ name: z.string().min(1) }).safeParse(body);
     if (!parsed.success) return c.json({ error: "invalid body" }, 400);
-    const token = tokenFromRequest(c.req.raw);
-    const session = token ? await db.auth.getSessionByAccessToken(token) : null;
-    const userId = session?.user_id ?? userFromHeaders(c.req.raw);
-    const project = await db.projects.create({ name: parsed.data.name, ownerUserId: userId });
+    const { session, response } = await requireSession(c);
+    if (response) return response;
+    const project = await db.projects.create({ name: parsed.data.name, ownerUserId: session.user_id });
 
     await db.audit.log({
-      userId,
+      userId: session.user_id,
       actorId: actorFromHeaders(c.req.raw),
       action: "project.create",
       resourceType: "project",
@@ -210,8 +223,13 @@ export function createApp(deps: AppDeps = {}) {
     const parsed = UUID.safeParse(id);
     if (!parsed.success) return c.json({ error: "invalid id" }, 400);
 
+    const { session, response } = await requireSession(c);
+    if (response) return response;
     const project = await db.projects.get(id);
     if (!project) return c.json({ error: "not found" }, 404);
+    if (project.owner_user_id && project.owner_user_id !== session.user_id) {
+      return c.json({ error: "forbidden" }, 403);
+    }
     return c.json({ project });
   });
 
@@ -224,12 +242,23 @@ export function createApp(deps: AppDeps = {}) {
       .object({ name: z.string().min(1).optional(), metadata: z.record(z.any()).optional() })
       .safeParse(body);
     if (!parsed.success) return c.json({ error: "invalid body" }, 400);
+    if (parsed.data.name === undefined && parsed.data.metadata === undefined) {
+      return c.json({ error: "must provide at least one field" }, 400);
+    }
+
+    const { session, response } = await requireSession(c);
+    if (response) return response;
+    const existing = await db.projects.get(id);
+    if (!existing) return c.json({ error: "not found" }, 404);
+    if (existing.owner_user_id && existing.owner_user_id !== session.user_id) {
+      return c.json({ error: "forbidden" }, 403);
+    }
 
     const updated = await db.projects.update({ id, name: parsed.data.name, metadata: parsed.data.metadata });
     if (!updated) return c.json({ error: "not found" }, 404);
 
     await db.audit.log({
-      userId: userFromHeaders(c.req.raw),
+      userId: session.user_id,
       actorId: actorFromHeaders(c.req.raw),
       action: "project.update",
       resourceType: "project",
@@ -247,11 +276,18 @@ export function createApp(deps: AppDeps = {}) {
     const id = c.req.param("id");
     const parsedId = UUID.safeParse(id);
     if (!parsedId.success) return c.json({ error: "invalid id" }, 400);
+    const { session, response } = await requireSession(c);
+    if (response) return response;
+    const existing = await db.projects.get(id);
+    if (!existing) return c.json({ error: "not found" }, 404);
+    if (existing.owner_user_id && existing.owner_user_id !== session.user_id) {
+      return c.json({ error: "forbidden" }, 403);
+    }
     const deleted = await db.projects.delete(id);
     if (!deleted) return c.json({ error: "not found" }, 404);
 
     await db.audit.log({
-      userId: userFromHeaders(c.req.raw),
+      userId: session.user_id,
       actorId: actorFromHeaders(c.req.raw),
       action: "project.delete",
       resourceType: "project",
@@ -285,9 +321,10 @@ export function createApp(deps: AppDeps = {}) {
     }
 
     const response = await db.projects.appendOps(id, batch.data.ops);
+    const session = await getSessionFromRequest(c);
 
     await db.audit.log({
-      userId: userFromHeaders(c.req.raw),
+      userId: session?.user_id ?? null,
       actorId,
       action: "sync.ops.append",
       resourceType: "project",
@@ -322,8 +359,19 @@ export function createApp(deps: AppDeps = {}) {
 
   app.get("/v1/assets", async (c) => {
     const projectId = c.req.query("projectId") ?? null;
-    const ownerUserId = c.req.query("ownerUserId") ?? userFromHeaders(c.req.raw);
+    const session = await getSessionFromRequest(c);
+    if (!session || !session.user_id) {
+      return c.json({ error: "missing bearer token" }, 401);
+    }
+    const ownerUserId = session.user_id;
     if (projectId && !UUID.safeParse(projectId).success) return c.json({ error: "invalid project id" }, 400);
+    if (projectId) {
+      const project = await db.projects.get(projectId);
+      if (!project) return c.json({ error: "project not found" }, 404);
+      if (project.owner_user_id && project.owner_user_id !== ownerUserId) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+    }
     const assets = await db.assets.list({ ownerUserId, projectId });
     return c.json({ assets });
   });
@@ -340,6 +388,8 @@ export function createApp(deps: AppDeps = {}) {
       })
       .safeParse(body);
     if (!parsed.success) return c.json({ error: "invalid body" }, 400);
+    const { session, response } = await requireSession(c);
+    if (response) return response;
 
     const objectKey = objectStore.buildObjectKey({
       prefix: `assets/uploads/${parsed.data.projectId ?? "global"}`,
@@ -347,8 +397,16 @@ export function createApp(deps: AppDeps = {}) {
       contentType: parsed.data.mime ?? null,
     });
 
+    if (parsed.data.projectId) {
+      const project = await db.projects.get(parsed.data.projectId);
+      if (!project) return c.json({ error: "project not found" }, 404);
+      if (project.owner_user_id && project.owner_user_id !== session.user_id) {
+        return c.json({ error: "forbidden" }, 403);
+      }
+    }
+
     const asset = await db.assets.create({
-      ownerUserId: userFromHeaders(c.req.raw),
+      ownerUserId: session.user_id,
       projectId: parsed.data.projectId ?? null,
       kind: parsed.data.kind,
       mime: parsed.data.mime ?? null,
@@ -390,9 +448,14 @@ export function createApp(deps: AppDeps = {}) {
     const id = c.req.param("id");
     const parsedId = UUID.safeParse(id);
     if (!parsedId.success) return c.json({ error: "invalid id" }, 400);
+    const { session, response } = await requireSession(c);
+    if (response) return response;
 
     const asset = await db.assets.get(id);
     if (!asset) return c.json({ error: "not found" }, 404);
+    if (asset.owner_user_id && asset.owner_user_id !== session.user_id) {
+      return c.json({ error: "forbidden" }, 403);
+    }
 
     const variants = await db.assets.listVariants(asset.id);
     const download = objectStore.createPresignedDownload({ objectKey: asset.object_key });
@@ -414,6 +477,13 @@ export function createApp(deps: AppDeps = {}) {
       })
       .safeParse(body);
     if (!parsed.success) return c.json({ error: "invalid body" }, 400);
+    const { session, response } = await requireSession(c);
+    if (response) return response;
+    const existing = await db.assets.get(id);
+    if (!existing) return c.json({ error: "not found" }, 404);
+    if (existing.owner_user_id && existing.owner_user_id !== session.user_id) {
+      return c.json({ error: "forbidden" }, 403);
+    }
 
     const asset = await db.assets.updateMetadata({
       id,
@@ -425,7 +495,7 @@ export function createApp(deps: AppDeps = {}) {
     if (!asset) return c.json({ error: "not found" }, 404);
 
     await db.audit.log({
-      userId: asset.owner_user_id ?? null,
+      userId: session.user_id,
       actorId: actorFromHeaders(c.req.raw),
       action: "asset.metadata.update",
       resourceType: "asset",
@@ -454,6 +524,13 @@ export function createApp(deps: AppDeps = {}) {
       })
       .safeParse(body);
     if (!parsed.success) return c.json({ error: "invalid body" }, 400);
+    const { session, response } = await requireSession(c);
+    if (response) return response;
+    const asset = await db.assets.get(id);
+    if (!asset) return c.json({ error: "not found" }, 404);
+    if (asset.owner_user_id && asset.owner_user_id !== session.user_id) {
+      return c.json({ error: "forbidden" }, 403);
+    }
 
     const variant = await db.assets.addVariant({
       assetId: id,
@@ -465,7 +542,7 @@ export function createApp(deps: AppDeps = {}) {
     });
 
     await db.audit.log({
-      userId: userFromHeaders(c.req.raw),
+      userId: session.user_id,
       actorId: actorFromHeaders(c.req.raw),
       action: "asset.variant.upsert",
       resourceType: "asset_variant",
@@ -498,6 +575,8 @@ export function createApp(deps: AppDeps = {}) {
       })
       .safeParse(body);
     if (!parsed.success) return c.json({ error: "invalid body" }, 400);
+    const { session, response } = await requireSession(c);
+    if (response) return response;
 
     const job = await db.jobs.enqueue({
       type: parsed.data.type,
@@ -507,7 +586,7 @@ export function createApp(deps: AppDeps = {}) {
     });
 
     await db.audit.log({
-      userId: userFromHeaders(c.req.raw),
+      userId: session.user_id,
       actorId: actorFromHeaders(c.req.raw),
       action: "job.enqueue",
       resourceType: "job",
@@ -528,6 +607,9 @@ export function createApp(deps: AppDeps = {}) {
     const status = c.req.query("status") ?? null;
     if (assetId && !UUID.safeParse(assetId).success) return c.json({ error: "invalid asset id" }, 400);
     if (projectId && !UUID.safeParse(projectId).success) return c.json({ error: "invalid project id" }, 400);
+    if (!assetId && !projectId && !status) {
+      return c.json({ error: "must provide at least one filter: assetId, projectId, or status" }, 400);
+    }
 
     const jobs = await db.jobs.list({ assetId, projectId, status });
     return c.json({ jobs });

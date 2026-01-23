@@ -5,6 +5,7 @@ import { synthesizeOpId } from "@floorplan/sync";
 
 export type ProjectRow = {
   id: string;
+  owner_user_id: string | null;
   name: string;
   created_at: string;
   updated_at: string;
@@ -86,7 +87,7 @@ export async function createProject(args: { name: string; ownerUserId?: string |
   const rows = await sql<ProjectRow[]>`
     INSERT INTO projects (id, owner_user_id, name)
     VALUES (${id}::uuid, ${args.ownerUserId ?? null}::uuid, ${args.name})
-    RETURNING id, name, created_at, updated_at, metadata
+    RETURNING id, owner_user_id, name, created_at, updated_at, metadata
   `;
   return rows[0]!;
 }
@@ -99,7 +100,7 @@ export async function updateProject(args: { id: string; name?: string | null; me
       metadata = COALESCE(${args.metadata ? sql.json(args.metadata) : null}, metadata),
       updated_at = now()
     WHERE id = ${args.id}::uuid
-    RETURNING id, name, created_at, updated_at, metadata
+    RETURNING id, owner_user_id, name, created_at, updated_at, metadata
   `;
   return rows[0] ?? null;
 }
@@ -115,7 +116,7 @@ export async function deleteProject(id: string) {
 
 export async function getProject(id: string) {
   const rows = await sql<ProjectRow[]>`
-    SELECT id, name, created_at, updated_at, metadata
+    SELECT id, owner_user_id, name, created_at, updated_at, metadata
     FROM projects
     WHERE id = ${id}::uuid
     LIMIT 1
@@ -126,7 +127,7 @@ export async function getProject(id: string) {
 export async function listProjects(ownerUserId?: string | null) {
   if (!ownerUserId) {
     const rows = await sql<ProjectRow[]>`
-      SELECT id, name, created_at, updated_at, metadata
+      SELECT id, owner_user_id, name, created_at, updated_at, metadata
       FROM projects
       ORDER BY updated_at DESC
       LIMIT 50
@@ -134,7 +135,7 @@ export async function listProjects(ownerUserId?: string | null) {
     return rows;
   }
   const rows = await sql<ProjectRow[]>`
-    SELECT id, name, created_at, updated_at, metadata
+    SELECT id, owner_user_id, name, created_at, updated_at, metadata
     FROM projects
     WHERE owner_user_id = ${ownerUserId}::uuid
     ORDER BY updated_at DESC
