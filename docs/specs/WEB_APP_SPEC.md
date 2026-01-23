@@ -46,6 +46,7 @@ The web app must be compatible with the same project model and sync semantics as
 ### Auth
 - Primary: standard web login (Sign in with Apple via OAuth).
 - Optional: pairing code flow from iOS device for “companion mode”.
+  - Web UI includes pairing code entry and device session management (see DEVICE_PAIRING_SPEC).
 
 ### Realtime
 - WebSocket to backend:
@@ -127,4 +128,3 @@ Build concerns:
 - code-splitting by route
 - lazy-load 3D/editor bundles
 - keep initial route fast for share links
-

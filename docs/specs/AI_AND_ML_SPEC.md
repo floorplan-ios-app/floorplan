@@ -21,6 +21,7 @@ This document specifies AI/ML capabilities and their integration points:
 2. Results are editable and explainable; AI never “locks” the user in.
 3. AI usage is safe: no secret leakage, no unsafe remote execution patterns.
 4. Provide measurable quality: evaluation harnesses and regression tests.
+5. Backend orchestration ensures structured, validated actions.
 
 ---
 
@@ -38,6 +39,18 @@ This document specifies AI/ML capabilities and their integration points:
 - Material palettes and lighting suggestions.
 - Generated textures/materials (where appropriate).
 - Render suggestions (camera angles, staging).
+
+---
+
+## Backend AI orchestrator (required)
+
+The backend owns AI orchestration to keep credentials and policies server-side:
+- selects providers (LLM, diffusion, CV) based on request type
+- scrubs sensitive data before external calls
+- enforces rate limits and safety filters
+- converts AI output into **structured actions** that are validated and applied through the op-log pipeline
+
+AI never executes arbitrary code in clients or backend; only predefined action schemas are accepted.
 
 ---
 
@@ -98,6 +111,7 @@ Fallback:
 ### Guardrails
 - Do not upload room images/layouts to external providers without explicit consent.
 - Provide “local-only” mode that disables external calls.
+- Scrub obvious PII from prompts (names, addresses) before external calls.
 
 ---
 
@@ -144,6 +158,7 @@ Server-side:
 - large LLMs or diffusion models
 - GPU-heavy rendering/generation
 - tasks requiring access to catalog and job orchestration
+- provider-agnostic routing (swap models without client changes)
 
 ---
 
@@ -189,4 +204,3 @@ The reducer converts this proposal into domain ops (place/move/set material), al
 - undo/redo
 - sync
 - conflict handling
-

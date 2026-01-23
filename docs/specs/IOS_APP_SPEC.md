@@ -47,6 +47,8 @@ Rationale:
 - **Assets**: catalog, search, favorites, downloads, local imports.
 - **Account/Sharing**: sign-in, sharing, collaborator management.
 - **Settings**: units, performance quality, privacy, cache management.
+- **Device Pairing**: QR/code pairing flow for web companion sessions (see DEVICE_PAIRING_SPEC).
+- **Export/Share**: export PDF/PNG/USDZ and share links.
 
 ---
 
@@ -251,4 +253,3 @@ Suggested targets (tune per device class):
 - Dynamic Type for inspectors and panels.
 - Color-blind-friendly selection indicators.
 - Reduced motion mode for transitions.
-

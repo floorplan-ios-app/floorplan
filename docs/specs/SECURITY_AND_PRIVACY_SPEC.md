@@ -46,10 +46,12 @@ A pairing flow is acceptable for:
 - supporting “companion mode” where the web app mirrors the device session
 
 Hard requirements:
-- pairing codes are short-lived (e.g., 60–120s)
-- pairing completion requires device confirmation (push or in-app approval)
-- pairing yields a separate web session with scoped permissions
+- pairing codes are short-lived (e.g., 60–300s), single-use, CSPRNG-generated
+- pairing completion may require device confirmation (push or in-app approval) for sensitive scopes
+- pairing yields a separate session with scoped permissions (e.g., `read_only`)
+- rate-limit pairing attempts by IP + user; lock after repeated failures
 - all sessions can be revoked immediately from the device
+- full flow details live in `DEVICE_PAIRING_SPEC.md`
 
 ---
 
@@ -82,6 +84,7 @@ Enforcement:
 - Rotate refresh tokens at every use.
 - Maintain a token family and invalidate on suspicious activity.
 - Store refresh token hashes server-side, never raw tokens.
+ - Prefer device-bound session IDs so individual devices can be revoked.
 
 ### Proof-of-possession (recommended for web)
 For high-security posture, bind tokens to clients using DPoP (proof-of-possession) for browser flows.

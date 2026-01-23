@@ -16,6 +16,7 @@ This document specifies:
 ## Requirements
 
 1. Support common import formats: GLB/glTF (preferred), USDZ, OBJ, FBX (ingest then convert).
+   - Accept PNG/JPEG/HEIC for textures and normalize to PNG/JPEG during ingest.
 2. Produce optimized delivery variants:
    - iOS: USDZ (preferred), plus texture variants
    - web: GLB + meshopt/draco variants, KTX2 textures
@@ -39,6 +40,7 @@ This document specifies:
   - computes SHA-256 for dedupe
   - extracts metadata
   - stores source as immutable
+  - detects archives (zip) and resolves a single canonical model file
 
 ### 2) Normalize
 Canonical internal representation:
@@ -48,6 +50,7 @@ Canonical internal representation:
   - coordinate system conventions
   - pivot/origin rules
   - texture color space tagging (sRGB/linear)
+  - strip unused extras (cameras, animations) unless explicitly requested
 
 ### 3) Optimize
 Produce variants:
@@ -67,6 +70,7 @@ Produce variants:
 - Generate iOS-friendly variants:
   - avoid extremely large textures by default
   - ensure USDZ is loadable by RealityKit
+ - Allow **on-demand** USDZ conversion if a variant is missing at request time.
 
 ### 5) Thumbnail/render previews
 - Render thumbnails with deterministic lighting/camera.
@@ -74,6 +78,7 @@ Produce variants:
   - square thumbnail
   - hero preview
   - optional turntable GIF/video
+ - Prefer server-side thumbnail generation for consistency; allow client-side temporary thumbnails before server render completes.
 
 ### 6) Publish
 - Store all variants in object storage with content-addressable keys.
@@ -168,4 +173,3 @@ Record in metadata:
 | mobile-low | older iPads | 50k | 1k | fast loads |
 | mobile-high | recent iPads | 200k | 2k | default |
 | desktop | web high end | 500k | 4k | optional |
-
