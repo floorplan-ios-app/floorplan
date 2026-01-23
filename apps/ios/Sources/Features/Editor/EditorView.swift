@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct EditorView: View {
+  let project: ProjectSummary?
+
   var body: some View {
     VStack(spacing: 12) {
       Text("Editor (stub)")
@@ -9,6 +11,6 @@ struct EditorView: View {
         .foregroundStyle(.secondary)
     }
     .padding()
-    .navigationTitle("Editor")
+    .navigationTitle(project?.name ?? "Editor")
   }
 }
