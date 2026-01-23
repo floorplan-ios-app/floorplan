@@ -2,6 +2,7 @@ import { sql } from "./sql";
 import { randomUUID, createHash } from "node:crypto";
 import type { Op } from "@floorplan/sync";
 import { synthesizeOpId } from "@floorplan/sync";
+import type { AssetJob, AssetJobStatus } from "@floorplan/shared";
 
 export type ProjectRow = {
   id: string;
@@ -33,6 +34,20 @@ export type AssetRow = {
   object_key: string;
   status: string;
   metadata: any;
+};
+
+export type AssetJobRow = {
+  id: string;
+  project_id: string;
+  asset_id: string;
+  type: AssetJob["type"];
+  status: AssetJobStatus;
+  payload: AssetJob;
+  attempts: number;
+  created_at: string;
+  updated_at: string;
+  started_at: string | null;
+  finished_at: string | null;
 };
 
 export type AssetVariantRow = {
@@ -533,4 +548,21 @@ export async function getOpsAfter(projectId: string, afterServerSeq: number, lim
     LIMIT ${limit}
   `;
   return rows.map((r) => ({ serverSeq: Number(r.server_seq), op: r.payload }));
+}
+
+export async function enqueueAssetJob(job: AssetJob) {
+  const id = randomUUID();
+  const rows = await sql<AssetJobRow[]>`
+    INSERT INTO asset_jobs (id, project_id, asset_id, type, status, payload)
+    VALUES (
+      ${id}::uuid,
+      ${job.projectId}::uuid,
+      ${job.assetId}::uuid,
+      ${job.type},
+      'pending',
+      ${sql.json(job)}
+    )
+    RETURNING id, project_id, asset_id, type, status, payload, attempts, created_at, updated_at, started_at, finished_at
+  `;
+  return rows[0]!;
 }

@@ -26,6 +26,9 @@ export type DbStorage = {
     enqueue: typeof repos.enqueueJob;
     list: typeof repos.listJobs;
   };
+  assetJobs: {
+    enqueue: typeof repos.enqueueAssetJob;
+  };
   auth: {
     createSession: typeof repos.createAuthSession;
     getSessionByAccessToken: typeof repos.getSessionByAccessToken;
@@ -63,6 +66,9 @@ export function createDbStorage(): DbStorage {
     jobs: {
       enqueue: repos.enqueueJob,
       list: repos.listJobs,
+    },
+    assetJobs: {
+      enqueue: repos.enqueueAssetJob,
     },
     auth: {
       createSession: repos.createAuthSession,

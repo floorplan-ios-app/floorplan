@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "zod": "^3.23.8",
-    "@floorplan/shared": "workspace:*"
+    "@floorplan/shared": "workspace:*",
+    "postgres": "^3.4.5"
   }
 }

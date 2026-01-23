@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { z } from "zod";
 import { OpBatchUpload } from "@floorplan/sync";
+import { AssetJob, AssetJobRequest } from "@floorplan/shared";
 import { createDbStorage, createLocalObjectStore } from "./storage";
 import { createLogger, requestTracing } from "./observability";
 
@@ -401,6 +402,37 @@ export function createApp(deps: AppDeps = {}) {
     const serverSeqMax = items.length ? items[items.length - 1]!.serverSeq : after;
 
     return c.json({ ops, serverSeqMax });
+  });
+
+  app.post("/v1/projects/:id/assets/:assetId/jobs", async (c) => {
+    const projectId = c.req.param("id");
+    const assetId = c.req.param("assetId");
+    if (!UUID.safeParse(projectId).success) return c.json({ error: "invalid project id" }, 400);
+    if (!UUID.safeParse(assetId).success) return c.json({ error: "invalid asset id" }, 400);
+
+    const body = await c.req.json().catch(() => null);
+    const parsedRequest = AssetJobRequest.safeParse(body);
+    if (!parsedRequest.success) return c.json({ error: "invalid job payload", details: parsedRequest.error.flatten() }, 400);
+
+    const parsedJob = AssetJob.safeParse({
+      ...parsedRequest.data,
+      projectId,
+      assetId,
+    });
+    if (!parsedJob.success) return c.json({ error: "invalid job payload", details: parsedJob.error.flatten() }, 400);
+
+    const row = await db.assetJobs.enqueue(parsedJob.data);
+    return c.json({ job: row }, 201);
+  });
+
+  app.get("/v1/projects/:id/assets/:assetId/variants", async (c) => {
+    const projectId = c.req.param("id");
+    const assetId = c.req.param("assetId");
+    if (!UUID.safeParse(projectId).success) return c.json({ error: "invalid project id" }, 400);
+    if (!UUID.safeParse(assetId).success) return c.json({ error: "invalid asset id" }, 400);
+
+    const variants = await db.assets.listVariants(assetId);
+    return c.json({ variants });
   });
 
   app.get("/v1/assets", async (c) => {
