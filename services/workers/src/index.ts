@@ -8,12 +8,9 @@ type AssetJobRow = {
 };
 
 type AssetVariantInsert = {
-  projectId: string;
   assetId: string;
-  variantType: AssetVariantType;
+  variantKey: AssetVariantType;
   objectKey: string;
-  sha256: string;
-  pipelineVersion: string;
   metadata?: Record<string, unknown>;
 };
 
@@ -94,22 +91,16 @@ const insertVariants = async (variants: AssetVariantInsert[]) => {
     await sql`
       INSERT INTO asset_variants (
         id,
-        project_id,
         asset_id,
-        variant_type,
+        variant_key,
         object_key,
-        sha256,
-        pipeline_version,
         metadata
       )
       VALUES (
         ${randomUUID()}::uuid,
-        ${variant.projectId}::uuid,
         ${variant.assetId}::uuid,
-        ${variant.variantType},
+        ${variant.variantKey},
         ${variant.objectKey},
-        ${variant.sha256},
-        ${variant.pipelineVersion},
         ${sql.json(variant.metadata ?? {})}
       )
       ON CONFLICT DO NOTHING
@@ -118,18 +109,21 @@ const insertVariants = async (variants: AssetVariantInsert[]) => {
 };
 
 const buildVariantsForJob = (job: AssetJob): AssetVariantInsert[] => {
-  const base = {
+  const baseMetadata = {
     projectId: job.projectId,
-    assetId: job.assetId,
-    sha256: job.sourceSha256,
     pipelineVersion: job.pipelineVersion,
+    sha256: job.sourceSha256,
+  };
+  const base = {
+    assetId: job.assetId,
+    metadata: baseMetadata,
   };
   switch (job.type) {
     case "asset.normalize":
       return [
         {
           ...base,
-          variantType: "canonical",
+          variantKey: "canonical",
           objectKey: buildVariantKey("canonical", job.sourceSha256),
         },
       ];
@@ -138,23 +132,23 @@ const buildVariantsForJob = (job: AssetJob): AssetVariantInsert[] => {
       if (job.payload.meshopt) {
         variants.push({
           ...base,
-          variantType: "web.meshopt",
+          variantKey: "web.meshopt",
           objectKey: buildVariantKey("web.meshopt", job.sourceSha256),
         });
       }
       if (job.payload.draco) {
         variants.push({
           ...base,
-          variantType: "web.draco",
+          variantKey: "web.draco",
           objectKey: buildVariantKey("web.draco", job.sourceSha256),
         });
       }
       for (const tier of job.payload.textureTiers) {
         variants.push({
           ...base,
-          variantType: "web.texture",
+          variantKey: "web.texture",
           objectKey: buildVariantKey("web.texture", job.sourceSha256, { tier }),
-          metadata: { tier },
+          metadata: { ...baseMetadata, tier },
         });
       }
       return variants;
@@ -163,29 +157,29 @@ const buildVariantsForJob = (job: AssetJob): AssetVariantInsert[] => {
       return [
         {
           ...base,
-          variantType: job.payload.target === "ios" ? "ios.usdz" : "web.meshopt",
+          variantKey: job.payload.target === "ios" ? "ios.usdz" : "web.meshopt",
           objectKey: buildVariantKey(
             job.payload.target === "ios" ? "ios.usdz" : "web.meshopt",
             job.sourceSha256
           ),
-          metadata: { target: job.payload.target },
+          metadata: { ...baseMetadata, target: job.payload.target },
         },
       ];
     case "asset.render":
       return [
         {
           ...base,
-          variantType: "thumb",
+          variantKey: "thumb",
           objectKey: buildVariantKey("thumb", job.sourceSha256),
-          metadata: { size: job.payload.thumbnailSize },
+          metadata: { ...baseMetadata, size: job.payload.thumbnailSize },
         },
         ...(job.payload.hero
           ? [
               {
                 ...base,
-                variantType: "preview",
+                variantKey: "preview",
                 objectKey: buildVariantKey("preview", job.sourceSha256),
-                metadata: { hero: job.payload.hero },
+                metadata: { ...baseMetadata, hero: job.payload.hero },
               },
             ]
           : []),
@@ -193,9 +187,9 @@ const buildVariantsForJob = (job: AssetJob): AssetVariantInsert[] => {
           ? [
               {
                 ...base,
-                variantType: "turntable",
+                variantKey: "turntable",
                 objectKey: buildVariantKey("turntable", job.sourceSha256),
-                metadata: { turntable: true },
+                metadata: { ...baseMetadata, turntable: true },
               },
             ]
           : []),
